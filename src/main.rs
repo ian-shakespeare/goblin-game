@@ -104,20 +104,20 @@ fn main() {
         // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
     }
 
-    let mut texture: GLuint = 0;
+    let mut texture1: GLuint = 0;
     unsafe {
-        gl::GenTextures(1, &mut texture);
-        gl::BindTexture(gl::TEXTURE_2D, texture);
+        gl::GenTextures(1, &mut texture1);
+        gl::BindTexture(gl::TEXTURE_2D, texture1);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap());
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap());
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR.try_into().unwrap());
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
     }
 
-    let img = ImageReader::open(res.get_full_path("textures/container.jpg")).unwrap().decode().unwrap();
-    let width = img.width();
-    let height = img.height();
-    let data = img.into_rgb8();
+    let container_img = ImageReader::open(res.get_full_path("textures/container.jpg")).unwrap().decode().unwrap();
+    let width = container_img.width();
+    let height = container_img.height();
+    let container_img_data = container_img.into_rgb8();
     unsafe {
         gl::TexImage2D(
             gl::TEXTURE_2D,
@@ -128,10 +128,45 @@ fn main() {
             0,
             gl::RGB,
             gl::UNSIGNED_BYTE,
-            data.as_ptr() as *const GLvoid,
+            container_img_data.as_ptr() as *const GLvoid,
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
     }
+    drop(container_img_data);
+
+    let mut texture2: GLuint = 0;
+    unsafe {
+        gl::GenTextures(1, &mut texture2);
+        gl::BindTexture(gl::TEXTURE_2D, texture2);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
+    }
+
+    let awesomeface_img = ImageReader::open(res.get_full_path("textures/awesomeface.png")).unwrap().decode().unwrap();
+    let width = awesomeface_img.width();
+    let height = awesomeface_img.height();
+    let awesomeface_img_data = awesomeface_img.into_rgb8();
+    unsafe {
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGB8.try_into().unwrap(),
+            width.try_into().unwrap(),
+            height.try_into().unwrap(),
+            0,
+            gl::RGB,
+            gl::UNSIGNED_BYTE,
+            awesomeface_img_data.as_ptr() as *const GLvoid,
+        );
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+    }
+    drop(awesomeface_img_data);
+
+    shaders.start_using();
+    shaders.set_uniform_1i("texture1", 1).unwrap();
+    shaders.set_uniform_1i("texture2", 1).unwrap();
 
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
@@ -148,9 +183,12 @@ fn main() {
             gl::ClearColor(0.2, 0.01, 0.2, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            shaders.start_using();
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture);
+            gl::BindTexture(gl::TEXTURE_2D, texture1);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, texture2);
+
+            shaders.start_using();
             gl::BindVertexArray(vao);
             // gl::DrawArrays(gl::TRIANGLES, 0, 3);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
