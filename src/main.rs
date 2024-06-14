@@ -109,12 +109,16 @@ fn main() {
         gl::AttachShader(shader_program, vertex_shader);
         gl::AttachShader(shader_program, fragment_shader);
         gl::LinkProgram(shader_program);
+    }
 
-        let mut success: GLint = 1;
-        let mut info_log_len: GLint = 0;
+    let mut success: GLint = 1;
+    let mut info_log_len: GLint = 0;
+    unsafe {
         gl::GetProgramiv(shader_program, gl::INFO_LOG_LENGTH, &mut info_log_len);
-        let mut info_log_buffer: Vec<u8> = Vec::with_capacity(info_log_len as usize + 1);
-        info_log_buffer.extend([b' '].iter().cycle().take(info_log_len as usize));
+    }
+    let mut info_log_buffer: Vec<u8> = Vec::with_capacity(info_log_len as usize + 1);
+    info_log_buffer.extend([b' '].iter().cycle().take(info_log_len as usize));
+    unsafe {
         let error: CString = CString::from_vec_unchecked(info_log_buffer);
         gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
         if success == 0 {
@@ -132,27 +136,26 @@ fn main() {
     }
 
     let vertices: Vec<f32> = vec![
-        -0.5, -0.5, 0.0,
+        0.5, 0.5, 0.0,
         0.5, -0.5, 0.0,
-        0.0, 0.5, 0.0,
+        -0.5, -0.5, 0.0,
+        -0.5, 0.5, 0.0,
     ];
-    let _indices: [usize;6] = [0, 1, 3, 1, 2, 3];
+    let indices: [GLuint;6] = [0, 1, 3, 1, 2, 3];
 
     let mut vao: GLuint = 0;
+    let mut vbo: GLuint = 0;
+    let mut ebo: GLuint = 0;
     unsafe {
         gl::GenVertexArrays(1, &mut vao);
-    }
-
-    let mut vbo: GLuint = 0;
-    unsafe {
         gl::GenBuffers(1, &mut vbo);
+        gl::GenBuffers(1, &mut ebo)
     }
 
     unsafe {
-        // 1) bind VAO
+        // bind vao, bind vertex buffers, configure vertex attributes
         gl::BindVertexArray(vao);
 
-        // 2) copy vertices into GL accessible buffer
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
@@ -161,7 +164,14 @@ fn main() {
             gl::STATIC_DRAW,
         );
 
-        // 3) set our vertex attribute pointers
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+        gl::BufferData(
+            gl::ELEMENT_ARRAY_BUFFER,
+            (indices.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
+            indices.as_ptr() as *const GLvoid,
+            gl::STATIC_DRAW,
+        );
+
         gl::VertexAttribPointer(
             0,
             3,
@@ -175,6 +185,8 @@ fn main() {
         // cleanup
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindVertexArray(0);
+
+        gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
     }
 
     let mut event_pump = sdl.event_pump().unwrap();
@@ -194,9 +206,17 @@ fn main() {
 
             gl::UseProgram(shader_program);
             gl::BindVertexArray(vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, 3);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
         }
 
         window.gl_swap_window();
+    }
+
+    // cleanup
+    unsafe {
+        gl::DeleteVertexArrays(1, &vao);
+        gl::DeleteBuffers(1, &vbo);
+        gl::DeleteBuffers(1, &ebo);
+        gl::DeleteProgram(shader_program);
     }
 }
