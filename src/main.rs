@@ -34,7 +34,7 @@ fn main() {
     let vertices: Vec<Vertex> = vec![
         Vertex { position: (0.5, 0.5, 0.0).into(), color: (1.0, 0.0, 0.0).into(), texture_coords: (1.0, 1.0).into() },
         Vertex { position: (0.5, -0.5, 0.0).into(), color: (0.0, 1.0, 0.0).into(), texture_coords: (1.0, 0.0).into() },
-        Vertex { position: (-0.5, -0.5, 0.0).into(), color: (0.0, 1.0, 1.0).into(), texture_coords: (0.0, 0.0).into() },
+        Vertex { position: (-0.5, -0.5, 0.0).into(), color: (0.0, 0.0, 1.0).into(), texture_coords: (0.0, 0.0).into() },
         Vertex { position: (-0.5, 0.5, 0.0).into(), color: (1.0, 1.0, 0.0).into(), texture_coords: (0.0, 1.0).into() },
     ];
     let indices: [GLuint;6] = [0, 1, 3, 1, 2, 3];
@@ -122,7 +122,7 @@ fn main() {
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
-            gl::RG8.try_into().unwrap(),
+            gl::RGB8.try_into().unwrap(),
             width.try_into().unwrap(),
             height.try_into().unwrap(),
             0,
