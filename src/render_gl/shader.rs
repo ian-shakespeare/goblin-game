@@ -1,5 +1,6 @@
 use std::ffi::{CStr, CString};
 use gl::types::{GLchar, GLint, GLuint};
+use nalgebra_glm as glm;
 use crate::resources::{ResourceError, Resources};
 use super::create_empty_buffer;
 
@@ -8,7 +9,7 @@ pub enum ShaderError {
     CouldNotCompile(String),
     CouldNotLink(String),
     CouldNotLoad(ResourceError),
-    InvalidUniform,
+    InvalidUniformName,
 }
 
 #[derive(Debug)]
@@ -149,7 +150,7 @@ impl Shader {
     pub fn set_uniform_1i(&self, name: &str, value: GLint) -> Result<(), ShaderError> {
         let null_terminated_name = format!("{}\0", name);
         let name = CStr::from_bytes_with_nul(null_terminated_name.as_bytes())
-            .map_err(|_| ShaderError::InvalidUniform)?;
+            .map_err(|_| ShaderError::InvalidUniformName)?;
         let location = unsafe {
             gl::GetUniformLocation(self.id, name.as_ptr() as *const GLchar)
         };
@@ -162,12 +163,25 @@ impl Shader {
     pub fn set_uniform_1f(&self, name: &str, value: f32) -> Result<(), ShaderError> {
         let null_terminated_name = format!("{}\0", name);
         let name = CStr::from_bytes_with_nul(null_terminated_name.as_bytes())
-            .map_err(|_| ShaderError::InvalidUniform)?;
+            .map_err(|_| ShaderError::InvalidUniformName)?;
         let location = unsafe {
             gl::GetUniformLocation(self.id, name.as_ptr() as *const GLchar)
         };
         unsafe {
             gl::Uniform1f(location, value);
+        }
+        Ok(())
+    }
+
+    pub fn set_transform(&self, name: &str, mat: &glm::Mat4) -> Result<(), ShaderError> {
+        let null_terminated_name = format!("{}\0", name);
+        let name = CStr::from_bytes_with_nul(null_terminated_name.as_bytes())
+            .map_err(|_| ShaderError::InvalidUniformName)?;
+        let location = unsafe {
+            gl::GetUniformLocation(self.id, name.as_ptr())
+        };
+        unsafe {
+            gl::UniformMatrix4fv(location, 1, gl::FALSE, glm::value_ptr(mat).as_ptr());
         }
         Ok(())
     }

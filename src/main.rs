@@ -1,7 +1,8 @@
 use gl::types::{GLint, GLsizeiptr, GLuint, GLvoid};
+use nalgebra_glm as glm;
 use sdl2::{self, event::Event, keyboard::Keycode};
-use std::path::Path;
-use open_gl_test::{render_gl::{shader::Shader, Vec3, Vertex}, resources::Resources};
+use std::{f32::consts::PI, path::Path};
+use open_gl_test::{render_gl::{shader::Shader, vectors::Vec3, Vertex}, resources::Resources};
 use image::io::Reader as ImageReader;
 
 fn main() {
@@ -32,10 +33,10 @@ fn main() {
     let shaders = Shader::from_resource(&res, "shaders/triangle").unwrap();
 
     let vertices: Vec<Vertex> = vec![
-        Vertex { position: (0.5, 0.5, 0.0).into(), color: (1.0, 0.0, 0.0).into(), texture_coords: (0.55, 0.55).into() },
-        Vertex { position: (0.5, -0.5, 0.0).into(), color: (0.0, 1.0, 0.0).into(), texture_coords: (0.55, 0.45).into() },
-        Vertex { position: (-0.5, -0.5, 0.0).into(), color: (0.0, 0.0, 1.0).into(), texture_coords: (0.45, 0.45).into() },
-        Vertex { position: (-0.5, 0.5, 0.0).into(), color: (1.0, 1.0, 0.0).into(), texture_coords: (0.45, 0.55).into() },
+        Vertex { position: (0.5, 0.5, 0.0).into(), color: (1.0, 0.0, 0.0).into(), texture_coords: (1.0, 1.0).into() },
+        Vertex { position: (0.5, -0.5, 0.0).into(), color: (0.0, 1.0, 0.0).into(), texture_coords: (1.0, 0.0).into() },
+        Vertex { position: (-0.5, -0.5, 0.0).into(), color: (0.0, 0.0, 1.0).into(), texture_coords: (0.0, 0.0).into() },
+        Vertex { position: (-0.5, 0.5, 0.0).into(), color: (1.0, 1.0, 0.0).into(), texture_coords: (0.0, 1.0).into() },
     ];
     let indices: [GLuint;6] = [0, 1, 3, 1, 2, 3];
 
@@ -112,8 +113,8 @@ fn main() {
         gl::BindTexture(gl::TEXTURE_2D, texture1);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE.try_into().unwrap());
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
     }
     // open image
     let container_img = ImageReader::open(res.get_full_path("textures/container.jpg"))
@@ -147,8 +148,8 @@ fn main() {
         gl::BindTexture(gl::TEXTURE_2D, texture2);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap());
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
     }
 
     let awesomeface_img = ImageReader::open(res.get_full_path("textures/awesomeface.png"))
@@ -208,10 +209,26 @@ fn main() {
             gl::ActiveTexture(gl::TEXTURE1);
             gl::BindTexture(gl::TEXTURE_2D, texture2);
 
+            // create transform
+            let mut transform = glm::Mat4::identity();
+            let translation_vec = glm::Vec3::new(0.5, -0.5, 0.0);
+            transform = glm::translate(&transform, &translation_vec);
+            let rotation_vec = glm::Vec3::new(0.0, 0.0, 1.0);
+            transform = glm::rotate(&transform, 0.5 * PI, &rotation_vec);
+
             shaders.start_using();
             shaders.set_uniform_1f("aMixValue", mix_value).unwrap();
+            shaders.set_transform("transform", &transform).unwrap();
             gl::BindVertexArray(vao);
-            // gl::DrawArrays(gl::TRIANGLES, 0, 3);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+            let mut transform = glm::Mat4::identity();
+            let translation_vec = glm::Vec3::new(-0.5, 0.5, 0.0);
+            transform = glm::translate(&transform, &translation_vec);
+            let rotation_vec = glm::Vec3::new(0.0, 0.0, 1.0);
+            transform = glm::rotate(&transform, 0.5 * PI, &rotation_vec);
+
+            shaders.set_transform("transform", &transform).unwrap();
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
         }
 
