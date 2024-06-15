@@ -1,8 +1,10 @@
 use std::ffi::{CStr, CString};
 use gl::types::{GLchar, GLint, GLuint};
 use nalgebra_glm as glm;
-use crate::resources::{ResourceError, Resources};
-use super::create_empty_buffer;
+use crate::{
+    resources::{ResourceError, Resources},
+    utils::create_empty_buffer
+};
 
 #[derive(Debug)]
 pub enum ShaderError {
