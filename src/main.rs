@@ -1,5 +1,5 @@
 use gl::types::{GLint, GLsizeiptr, GLuint, GLvoid};
-use sdl2::{self, event::Event};
+use sdl2::{self, event::Event, keyboard::Keycode};
 use std::path::Path;
 use open_gl_test::{render_gl::{shader::Shader, Vec3, Vertex}, resources::Resources};
 use image::io::Reader as ImageReader;
@@ -32,10 +32,10 @@ fn main() {
     let shaders = Shader::from_resource(&res, "shaders/triangle").unwrap();
 
     let vertices: Vec<Vertex> = vec![
-        Vertex { position: (0.5, 0.5, 0.0).into(), color: (1.0, 0.0, 0.0).into(), texture_coords: (1.0, 1.0).into() },
-        Vertex { position: (0.5, -0.5, 0.0).into(), color: (0.0, 1.0, 0.0).into(), texture_coords: (1.0, 0.0).into() },
-        Vertex { position: (-0.5, -0.5, 0.0).into(), color: (0.0, 0.0, 1.0).into(), texture_coords: (0.0, 0.0).into() },
-        Vertex { position: (-0.5, 0.5, 0.0).into(), color: (1.0, 1.0, 0.0).into(), texture_coords: (0.0, 1.0).into() },
+        Vertex { position: (0.5, 0.5, 0.0).into(), color: (1.0, 0.0, 0.0).into(), texture_coords: (0.55, 0.55).into() },
+        Vertex { position: (0.5, -0.5, 0.0).into(), color: (0.0, 1.0, 0.0).into(), texture_coords: (0.55, 0.45).into() },
+        Vertex { position: (-0.5, -0.5, 0.0).into(), color: (0.0, 0.0, 1.0).into(), texture_coords: (0.45, 0.45).into() },
+        Vertex { position: (-0.5, 0.5, 0.0).into(), color: (1.0, 1.0, 0.0).into(), texture_coords: (0.45, 0.55).into() },
     ];
     let indices: [GLuint;6] = [0, 1, 3, 1, 2, 3];
 
@@ -89,6 +89,7 @@ fn main() {
         );
         gl::EnableVertexAttribArray(2);
 
+        // element buffer
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
         gl::BufferData(
             gl::ELEMENT_ARRAY_BUFFER,
@@ -104,25 +105,30 @@ fn main() {
         // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
     }
 
+    // create texture
     let mut texture1: GLuint = 0;
     unsafe {
         gl::GenTextures(1, &mut texture1);
         gl::BindTexture(gl::TEXTURE_2D, texture1);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST.try_into().unwrap());
     }
-
-    let container_img = ImageReader::open(res.get_full_path("textures/container.jpg")).unwrap().decode().unwrap();
+    // open image
+    let container_img = ImageReader::open(res.get_full_path("textures/container.jpg"))
+        .unwrap()
+        .decode()
+        .unwrap();
     let width = container_img.width();
     let height = container_img.height();
     let container_img_data = container_img.into_rgb8();
+    // bind image
     unsafe {
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
-            gl::RGB8.try_into().unwrap(),
+            gl::RGB.try_into().unwrap(),
             width.try_into().unwrap(),
             height.try_into().unwrap(),
             0,
@@ -132,6 +138,7 @@ fn main() {
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
     }
+    // free image (it is now loaded in GPU)
     drop(container_img_data);
 
     let mut texture2: GLuint = 0;
@@ -140,23 +147,26 @@ fn main() {
         gl::BindTexture(gl::TEXTURE_2D, texture2);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap());
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST.try_into().unwrap());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST.try_into().unwrap());
     }
 
-    let awesomeface_img = ImageReader::open(res.get_full_path("textures/awesomeface.png")).unwrap().decode().unwrap();
+    let awesomeface_img = ImageReader::open(res.get_full_path("textures/awesomeface.png"))
+        .unwrap()
+        .decode()
+        .unwrap();
     let width = awesomeface_img.width();
     let height = awesomeface_img.height();
-    let awesomeface_img_data = awesomeface_img.into_rgb8();
+    let awesomeface_img_data = awesomeface_img.flipv().into_rgba8();
     unsafe {
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
-            gl::RGB8.try_into().unwrap(),
+            gl::RGBA.try_into().unwrap(),
             width.try_into().unwrap(),
             height.try_into().unwrap(),
             0,
-            gl::RGB,
+            gl::RGBA,
             gl::UNSIGNED_BYTE,
             awesomeface_img_data.as_ptr() as *const GLvoid,
         );
@@ -165,15 +175,25 @@ fn main() {
     drop(awesomeface_img_data);
 
     shaders.start_using();
-    shaders.set_uniform_1i("texture1", 1).unwrap();
-    shaders.set_uniform_1i("texture2", 1).unwrap();
+    shaders.set_uniform_1i("aTexture1", 0).unwrap();
+    shaders.set_uniform_1i("aTexture2", 1).unwrap();
 
+    let mut mix_value: f32 = 0.5;
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
         // handle input events
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { timestamp: _ } => break 'main,
+                Event::KeyDown { keycode, timestamp: _, window_id: _, scancode: _, keymod: _, repeat: _ } => {
+                    if let Some(key) = keycode {
+                        match key {
+                            Keycode::Up => mix_value += 0.1,
+                            Keycode::Down => mix_value -= 0.1,
+                            _ => (),
+                        }
+                    }
+                },
                 _ => ()
             }
         }
@@ -189,6 +209,7 @@ fn main() {
             gl::BindTexture(gl::TEXTURE_2D, texture2);
 
             shaders.start_using();
+            shaders.set_uniform_1f("aMixValue", mix_value).unwrap();
             gl::BindVertexArray(vao);
             // gl::DrawArrays(gl::TRIANGLES, 0, 3);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
