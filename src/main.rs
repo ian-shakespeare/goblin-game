@@ -1,9 +1,14 @@
-use gl::types::{GLint, GLsizeiptr, GLuint, GLvoid};
-use nalgebra_glm::{self as glm, U3};
-use sdl2::{self, event::Event, keyboard::Keycode};
+use gl::types::{GLsizeiptr, GLuint, GLvoid};
+use nalgebra_glm as glm;
+use sdl2;
 use std::{f32::consts::PI, path::Path};
-use open_gl_test::{camera::Camera, shader::Shader, utils::Vertex, resources::Resources};
+use open_gl_test::{camera::Camera, controller::{Controller, ControllerDirection}, input::InputHandler, resources::Resources, shader::Shader, utils::Vertex};
 use image::io::Reader as ImageReader;
+
+const SCREEN_WIDTH: f32 = 900.0;
+const SCREEN_HEIGHT: f32 = 700.0;
+const TICKS_PER_SECOND: f32 = 90.0;
+const TICK_RATE: f32 = 1000.0 / TICKS_PER_SECOND;
 
 fn main() {
     let res = Resources::from_relative_exe_path(Path::new("assets")).unwrap();
@@ -31,53 +36,53 @@ fn main() {
     let _gl = gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void);
 
     unsafe {
-        gl::Viewport(0, 0, 900, 700);
+        gl::Viewport(0, 0, SCREEN_WIDTH as i32, SCREEN_HEIGHT as i32);
         gl::Enable(gl::DEPTH_TEST);
     }
 
     let shaders = Shader::from_resource(&res, "shaders/triangle").unwrap();
     let vertices: Vec<Vertex> = vec![
-        Vertex { position: glm::Vec3::new(-0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
+        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 0.0)),
 
-        Vertex { position: glm::Vec3::new(-0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
+        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
 
-        Vertex { position: glm::Vec3::new(-0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(-0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
-        Vertex { position: glm::Vec3::new(-0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
+        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
+        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
 
-        Vertex { position: glm::Vec3::new(0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
+        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
 
-        Vertex { position: glm::Vec3::new(-0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
-        Vertex { position: glm::Vec3::new(-0.5, -0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
+        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
+        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
 
-        Vertex { position: glm::Vec3::new(-0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(1.0, 1.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(1.0, 0.0) },
-        Vertex { position: glm::Vec3::new(-0.5,  0.5,  0.5),  texture_coords: glm::Vec2::new(0.0, 0.0) },
-        Vertex { position: glm::Vec3::new(-0.5,  0.5, -0.5),  texture_coords: glm::Vec2::new(0.0, 1.0) },
+        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
+        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
+        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
     ];
 
     let cube_positions: [glm::Vec3;10] = [
@@ -110,26 +115,7 @@ fn main() {
             vertices.as_ptr() as *const GLvoid,
             gl::STATIC_DRAW,
         );
-        // position
-        gl::VertexAttribPointer(
-            0,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            std::mem::size_of::<Vertex>() as GLint,
-            std::ptr::null(),
-        );
-        gl::EnableVertexAttribArray(0);
-        // texture
-        gl::VertexAttribPointer(
-            1,
-            2,
-            gl::FLOAT,
-            gl::FALSE,
-            std::mem::size_of::<Vertex>() as GLint,
-            std::mem::size_of::<glm::Vec3>() as *const GLvoid,
-        );
-        gl::EnableVertexAttribArray(1);
+        Vertex::configure_attributes();
 
         // cleanup
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
@@ -212,43 +198,46 @@ fn main() {
     shaders.set_uniform_1i("aTexture2", 1).unwrap();
 
     let mut camera = Camera::new();
-    let mut last_frame: f32 = start_time.elapsed().as_secs_f32();
     let mix_value: f32 = 0.5;
 
-    let mut event_pump = sdl.event_pump().unwrap();
-    'main: loop {
-        let current_frame = start_time.elapsed().as_secs_f32();
-        let delta_time = current_frame - last_frame;
-        last_frame = current_frame;
+    let mut tick_count: u32 = 0;
+    let mut last_tick_ms: f32 = start_time.elapsed().as_secs_f32()  * 1000.0;
 
-        let camera_speed = 50.0 * delta_time;
-        // handle input events
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { timestamp: _ } => break 'main,
-                Event::MouseMotion { timestamp: _, window_id: _, which: _, mousestate: _, x: _, y: _, xrel, yrel } => {
-                    camera.rotate(xrel as f32, -yrel as f32, None);
-                },
-                Event::KeyDown { keycode, timestamp: _, window_id: _, scancode: _, keymod: _, repeat: _ } => {
-                    if let Some(key) = keycode {
-                        match key {
-                            Keycode::Q => break 'main,
-                            Keycode::W => camera.translate(camera_speed * camera.front()),
-                            Keycode::A => {
-                                let cross = glm::cross::<f32, U3>(&camera.front(), &camera.up());
-                                camera.translate(-camera_speed * glm::normalize(&cross));
-                            },
-                            Keycode::S => camera.translate(-camera_speed * camera.front()),
-                            Keycode::D => {
-                                let cross = glm::cross::<f32, U3>(&camera.front(), &camera.up());
-                                camera.translate(camera_speed * glm::normalize(&cross));
-                            },
-                            _ => (),
-                        }
-                    }
-                },
-                _ => ()
+    let event_pump = sdl.event_pump().unwrap();
+    let mut input_handler = InputHandler::new(event_pump);
+    let mut controller = Controller::new();
+
+    'main: loop {
+        let current_time_ms = start_time.elapsed().as_secs_f32() * 1000.0;
+        let inputs = input_handler.get_input_events();
+        if inputs.has_quit {
+            break 'main;
+        }
+
+        // process mouse inputs
+        if let Some((mouse_x, mouse_y)) = inputs.mouse_move {
+            camera.rotate(mouse_x, mouse_y, None);
+        }
+        if let Some(mouse_scroll) = inputs.mouse_scroll {
+            camera.zoom(mouse_scroll);
+        }
+
+        // process keyboard inputs
+        controller.process_input(&inputs);
+        if controller.has_requested_quit() {
+            break 'main;
+        }
+
+        // TICK
+        if current_time_ms >= last_tick_ms + TICK_RATE {
+            let camera_translate_vec = controller.get_direction_vec(&camera.front(), &camera.up());
+            if let Some(vec) = camera_translate_vec {
+                camera.translate(camera.speed() * glm::Vec3::new(vec.x, 0.0, vec.z));
             }
+
+            // update tick info
+            tick_count += 1;
+            last_tick_ms = current_time_ms;
         }
 
         // render
@@ -263,7 +252,7 @@ fn main() {
 
             let view_transform = camera.get_view_matrix();
 
-            let projection_transform = glm::perspective::<f32>(9.0 / 7.0, 45.0 / (180.0 / PI), 0.1, 100.0);
+            let projection_transform = glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
 
             shaders.start_using();
             shaders.set_uniform_1f("aMixValue", mix_value).unwrap();
@@ -276,9 +265,9 @@ fn main() {
                 model_transform = glm::translate(&model_transform, &position);
                 let model_rotation_vec = glm::Vec3::new(1.0, 0.3, 0.5);
                 let angle = match i {
-                    2 => current_frame * (PI / 18.0),
-                    5 => current_frame * (PI / 18.0),
-                    8 => current_frame * (PI / 18.0),
+                    2 => last_tick_ms * (PI / 18.0),
+                    5 => last_tick_ms * (PI / 18.0),
+                    8 => last_tick_ms * (PI / 18.0),
                     _ => (20.0 * i as f32) * (PI / 180.0),
                 };
                 model_transform = glm::rotate(&model_transform, angle, &model_rotation_vec);
@@ -289,6 +278,10 @@ fn main() {
 
         window.gl_swap_window();
     }
+
+    let total_run_time = start_time.elapsed().as_secs_f32();
+    let average_tick_rate = tick_count as f32 / total_run_time;
+    println!("Ran for {}s with {} ticks for a tick rate of {} per second", total_run_time, tick_count, average_tick_rate);
 
     // cleanup
     unsafe {

@@ -1,49 +1,68 @@
-use sdl2::{event::Event, keyboard::Keycode, EventPump};
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    mouse::MouseWheelDirection, EventPump
+};
 
-pub enum InputError {
-    UnknownKeycode,
+pub struct Inputs {
+    pub has_quit: bool,
+    pub mouse_move: Option<(f32, f32)>,
+    pub mouse_scroll: Option<f32>,
+    pub pressed_keys: Vec<Keycode>,
+    pub released_keys: Vec<Keycode>,
 }
 
-pub struct Input<Q, F, M> {
+pub struct InputHandler {
     event_pump: EventPump,
-    on_quit: Q,
-    on_key_down: F,
-    on_mouse_move: M,
 }
 
-impl<Q, F, M> Input<Q, F, M>
-where
-    F: Fn(Keycode),
-    Q: Fn(),
-    M: Fn(f32, f32),
-{
-    pub fn new(event_pump: EventPump, on_quit: Q, on_key_down: F, on_mouse_move: M) -> Self {
+impl InputHandler {
+    pub fn new(event_pump: EventPump) -> Self {
         Self {
             event_pump,
-            on_quit,
-            on_key_down,
-            on_mouse_move,
         }
     }
 
-    pub fn handle_events(&mut self) -> Result<(), InputError> {
+    pub fn get_input_events(&mut self) -> Inputs {
+        let mut has_quit = false;
+        let mut mouse_move = None;
+        let mut mouse_scroll = None;
+        let mut pressed_keys: Vec<Keycode> = Vec::new();
+        let mut released_keys: Vec<Keycode> = Vec::new();
         for event in self.event_pump.poll_iter() {
             match event {
-                Event::Quit { timestamp: _ } => (self.on_quit)(),
-                Event::KeyDown { timestamp: _, window_id: _, scancode: _, keymod: _, repeat: _, keycode } => {
-                    if let Some(key) = keycode {
-                        (self.on_key_down)(key);
-                    } else {
-                        return Err(InputError::UnknownKeycode);
+                Event::Quit { timestamp: _ } => has_quit = true,
+                Event::MouseMotion { xrel, yrel, timestamp: _, window_id: _, which: _, mousestate: _, x: _, y: _ } => {
+                    mouse_move = Some((xrel as f32, -yrel as f32));
+                },
+                Event::MouseWheel { direction, y, timestamp: _, window_id: _, which: _, x: _, precise_x: _, precise_y: _ } => {
+                    match direction {
+                        MouseWheelDirection::Normal => {
+                            mouse_scroll = Some(-y as f32);
+                        },
+                        _ => (),
+                    };
+                },
+                Event::KeyDown { keycode, repeat: _, timestamp: _, window_id: _, scancode: _, keymod: _ } => {
+                    if let Some(keycode) = keycode {
+                        pressed_keys.push(keycode);
                     }
                 },
-                Event::MouseMotion { timestamp: _, window_id: _, which: _, mousestate: _, x: _, y: _, xrel, yrel } => {
-                    (self.on_mouse_move)(xrel as f32, yrel as f32);
+                Event::KeyUp { keycode, repeat: _, timestamp: _, window_id: _, scancode: _, keymod: _ } => {
+                    if let Some(keycode) = keycode {
+                        released_keys.push(keycode);
+                    }
                 },
-                _ => (),
+                _ => ()
             }
         }
 
-        Ok(())
+        Inputs {
+            has_quit,
+            mouse_move,
+            mouse_scroll,
+            pressed_keys,
+            released_keys,
+        }
     }
 }
