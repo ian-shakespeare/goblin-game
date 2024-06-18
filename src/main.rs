@@ -1,8 +1,10 @@
-use gl::types::{GLsizeiptr, GLuint, GLvoid};
+use gl::types::{GLuint, GLvoid};
 use nalgebra_glm as glm;
 use sdl2;
 use std::{f32::consts::PI, path::Path};
-use open_gl_test::{camera::Camera, controller::{Controller, ControllerDirection}, input::InputHandler, resources::Resources, shader::Shader, utils::Vertex};
+use open_gl_test::{
+    camera::Camera, controller::Controller, input::InputHandler, resources::Resources, shader::Shader, texture::Texture, triangle::Triangle, vertex::{Vertex, VertexArray, VertexBuffer}
+};
 use image::io::Reader as ImageReader;
 
 const SCREEN_WIDTH: f32 = 900.0;
@@ -98,107 +100,16 @@ fn main() {
         glm::Vec3::new(-1.3 ,1.0 ,-1.5 )  
     ];
 
-    let mut vao: GLuint = 0;
-    let mut vbo: GLuint = 0;
-    unsafe {
-        gl::GenVertexArrays(1, &mut vao);
-        gl::GenBuffers(1, &mut vbo);
-    }
-
-    unsafe {
-        // bind vao, bind vertex buffers, configure vertex attributes
-        gl::BindVertexArray(vao);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            (vertices.len() * std::mem::size_of::<Vertex>()) as GLsizeiptr,
-            vertices.as_ptr() as *const GLvoid,
-            gl::STATIC_DRAW,
-        );
-        Vertex::configure_attributes();
-
-        // cleanup
-        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-        gl::BindVertexArray(0);
-
-        // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-    }
+    let triangle = Triangle::new(&shaders, vertices);
+    // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
 
     // create texture
-    let mut texture1: GLuint = 0;
-    unsafe {
-        gl::GenTextures(1, &mut texture1);
-        gl::BindTexture(gl::TEXTURE_2D, texture1);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
-    }
-    // open image
-    let container_img = ImageReader::open(res.get_full_path("textures/container.jpg"))
-        .unwrap()
-        .decode()
-        .unwrap();
-    let width = container_img.width();
-    let height = container_img.height();
-    let container_img_data = container_img.into_rgb8();
-    // bind image
-    unsafe {
-        gl::TexImage2D(
-            gl::TEXTURE_2D,
-            0,
-            gl::RGB.try_into().unwrap(),
-            width.try_into().unwrap(),
-            height.try_into().unwrap(),
-            0,
-            gl::RGB,
-            gl::UNSIGNED_BYTE,
-            container_img_data.as_ptr() as *const GLvoid,
-        );
-        gl::GenerateMipmap(gl::TEXTURE_2D);
-    }
-    // free image (it is now loaded in GPU)
-    drop(container_img_data);
-
-    let mut texture2: GLuint = 0;
-    unsafe {
-        gl::GenTextures(1, &mut texture2);
-        gl::BindTexture(gl::TEXTURE_2D, texture2);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR.try_into().unwrap());
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR.try_into().unwrap());
-    }
-
-    let awesomeface_img = ImageReader::open(res.get_full_path("textures/awesomeface.png"))
-        .unwrap()
-        .decode()
-        .unwrap();
-    let width = awesomeface_img.width();
-    let height = awesomeface_img.height();
-    let awesomeface_img_data = awesomeface_img.flipv().into_rgba8();
-    unsafe {
-        gl::TexImage2D(
-            gl::TEXTURE_2D,
-            0,
-            gl::RGBA.try_into().unwrap(),
-            width.try_into().unwrap(),
-            height.try_into().unwrap(),
-            0,
-            gl::RGBA,
-            gl::UNSIGNED_BYTE,
-            awesomeface_img_data.as_ptr() as *const GLvoid,
-        );
-        gl::GenerateMipmap(gl::TEXTURE_2D);
-    }
-    drop(awesomeface_img_data);
+    let texture1 = Texture::from_resource(&res, "textures/wall.jpg");
 
     shaders.start_using();
     shaders.set_uniform_1i("aTexture1", 0).unwrap();
-    shaders.set_uniform_1i("aTexture2", 1).unwrap();
 
     let mut camera = Camera::new();
-    let mix_value: f32 = 0.5;
 
     let mut tick_count: u32 = 0;
     let mut last_tick_ms: f32 = start_time.elapsed().as_secs_f32()  * 1000.0;
@@ -245,20 +156,15 @@ fn main() {
             gl::ClearColor(0.8, 0.8, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture1);
-            gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D, texture2);
+            texture1.bind();
 
             let view_transform = camera.get_view_matrix();
 
             let projection_transform = glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
 
             shaders.start_using();
-            shaders.set_uniform_1f("aMixValue", mix_value).unwrap();
             shaders.set_transform("view", &view_transform).unwrap();
             shaders.set_transform("projection", &projection_transform).unwrap();
-            gl::BindVertexArray(vao);
 
             for (i, position) in cube_positions.iter().enumerate() {
                 let mut model_transform = glm::Mat4::identity();
@@ -271,8 +177,7 @@ fn main() {
                     _ => (20.0 * i as f32) * (PI / 180.0),
                 };
                 model_transform = glm::rotate(&model_transform, angle, &model_rotation_vec);
-                shaders.set_transform("model", &model_transform).unwrap();
-                gl::DrawArrays(gl::TRIANGLES, 0, 36);
+                triangle.draw(model_transform).unwrap();
             }
         }
 
@@ -282,10 +187,4 @@ fn main() {
     let total_run_time = start_time.elapsed().as_secs_f32();
     let average_tick_rate = tick_count as f32 / total_run_time;
     println!("Ran for {}s with {} ticks for a tick rate of {} per second", total_run_time, tick_count, average_tick_rate);
-
-    // cleanup
-    unsafe {
-        gl::DeleteVertexArrays(1, &mut vao);
-        gl::DeleteBuffers(1, &mut vbo);
-    }
 }
