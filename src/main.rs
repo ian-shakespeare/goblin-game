@@ -1,11 +1,9 @@
-use gl::types::{GLuint, GLvoid};
 use nalgebra_glm as glm;
 use sdl2;
-use std::{f32::consts::PI, path::Path};
+use std::path::Path;
 use open_gl_test::{
-    camera::Camera, controller::Controller, input::InputHandler, resources::Resources, shader::Shader, texture::Texture, triangle::Triangle, vertex::{Vertex, VertexArray, VertexBuffer}
+    camera::Camera, controller::Controller, input::InputHandler, level::Level, resources::Resources, shader::Shader, textures::texture_manager::TextureManager
 };
-use image::io::Reader as ImageReader;
 
 const SCREEN_WIDTH: f32 = 900.0;
 const SCREEN_HEIGHT: f32 = 700.0;
@@ -40,74 +38,13 @@ fn main() {
     unsafe {
         gl::Viewport(0, 0, SCREEN_WIDTH as i32, SCREEN_HEIGHT as i32);
         gl::Enable(gl::DEPTH_TEST);
+        // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
     }
 
-    let shaders = Shader::from_resource(&res, "shaders/triangle").unwrap();
-    let vertices: Vec<Vertex> = vec![
-        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 0.0)),
+    let texture_shader = Shader::from_resource(&res, "shaders/textured").unwrap();
+    let texture_manager = TextureManager::new(&res);
 
-        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
-
-        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
-        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-
-        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-
-        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5, -0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
-        Vertex::new(glm::Vec3::new(-0.5, -0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-
-        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5, -0.5), glm::Vec2::new(1.0, 1.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(0.5,  0.5,  0.5), glm::Vec2::new(1.0, 0.0)),
-        Vertex::new(glm::Vec3::new(-0.5,  0.5,  0.5), glm::Vec2::new(0.0, 0.0)),
-        Vertex::new(glm::Vec3::new(-0.5,  0.5, -0.5), glm::Vec2::new(0.0, 1.0)),
-    ];
-
-    let cube_positions: [glm::Vec3;10] = [
-        glm::Vec3::new(0.0, 0.0, 0.0), 
-        glm::Vec3::new( 2.0 ,5.0 ,-15.0 ), 
-        glm::Vec3::new(-1.5 ,-2.2 ,-2.5 ),  
-        glm::Vec3::new(-3.8 ,-2.0 ,-12.3 ),  
-        glm::Vec3::new( 2.4 ,-0.4 ,-3.5 ),  
-        glm::Vec3::new(-1.7 ,3.0 ,-7.5 ),  
-        glm::Vec3::new( 1.3 ,-2.0 ,-2.5 ),  
-        glm::Vec3::new( 1.5 ,2.0 ,-2.5 ), 
-        glm::Vec3::new( 1.5 ,0.2 ,-1.5 ), 
-        glm::Vec3::new(-1.3 ,1.0 ,-1.5 )  
-    ];
-
-    let triangle = Triangle::new(&shaders, vertices);
-    // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-
-    // create texture
-    let texture1 = Texture::from_resource(&res, "textures/wall.jpg");
-
-    shaders.start_using();
-    shaders.set_uniform_1i("aTexture1", 0).unwrap();
+    let level = Level::from_resource(&res, "levels/test.level", &texture_shader, &texture_manager).unwrap();
 
     let mut camera = Camera::new();
 
@@ -143,7 +80,7 @@ fn main() {
         if current_time_ms >= last_tick_ms + TICK_RATE {
             let camera_translate_vec = controller.get_direction_vec(&camera.front(), &camera.up());
             if let Some(vec) = camera_translate_vec {
-                camera.translate(camera.speed() * glm::Vec3::new(vec.x, 0.0, vec.z));
+                camera.translate(camera.speed() * glm::Vec3::new(vec.x, vec.y, vec.z)); // remove vec.y to not move vertically
             }
 
             // update tick info
@@ -153,33 +90,17 @@ fn main() {
 
         // render
         unsafe {
-            gl::ClearColor(0.8, 0.8, 1.0, 1.0);
+            //gl::ClearColor(0.4902, 0.6784, 0.7843, 1.0);
+            gl::ClearColor(0.6902, 0.8392, 0.851, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
-            texture1.bind();
-
-            let view_transform = camera.get_view_matrix();
-
-            let projection_transform = glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
-
-            shaders.start_using();
-            shaders.set_transform("view", &view_transform).unwrap();
-            shaders.set_transform("projection", &projection_transform).unwrap();
-
-            for (i, position) in cube_positions.iter().enumerate() {
-                let mut model_transform = glm::Mat4::identity();
-                model_transform = glm::translate(&model_transform, &position);
-                let model_rotation_vec = glm::Vec3::new(1.0, 0.3, 0.5);
-                let angle = match i {
-                    2 => last_tick_ms * (PI / 18.0),
-                    5 => last_tick_ms * (PI / 18.0),
-                    8 => last_tick_ms * (PI / 18.0),
-                    _ => (20.0 * i as f32) * (PI / 180.0),
-                };
-                model_transform = glm::rotate(&model_transform, angle, &model_rotation_vec);
-                triangle.draw(model_transform).unwrap();
-            }
         }
+
+        let view_transform = camera.get_view_matrix();
+        let projection_transform = glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
+
+        level.draw(&view_transform, &projection_transform);
+        // box1.draw(&view_transform, &projection_transform);
+        // box2.draw(&view_transform, &projection_transform);
 
         window.gl_swap_window();
     }

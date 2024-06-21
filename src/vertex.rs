@@ -1,10 +1,23 @@
 use gl::{self, types::{GLint, GLsizeiptr, GLuint, GLvoid}};
-use nalgebra_glm::{self as glm, Number};
+use nalgebra_glm as glm;
 
 #[repr(C, packed)]
 pub struct Vertex {
     pub position: glm::Vec3,
     pub texture_coords: glm::Vec2,
+}
+
+impl From<((f32, f32, f32), (f32, f32))> for Vertex {
+    fn from(value: ((f32, f32, f32), (f32, f32))) -> Self {
+        let (position, texture_coords) = value;
+        let (pos_x, pos_y, pos_z) = position;
+        let (tex_x, tex_y) = texture_coords;
+
+        Self {
+            position: glm::Vec3::new(pos_x, pos_y, pos_z),
+            texture_coords: glm::Vec2::new(tex_x, tex_y),
+        }
+    }
 }
 
 impl Vertex {
@@ -162,7 +175,7 @@ impl ElementBuffer {
         }
     }
 
-    pub fn static_draw_indices<T: Number>(&self, indices: &[T]) {
+    pub fn static_draw_indices<T>(&self, indices: &[T]) {
         unsafe {
             gl::BufferData(
                 gl::ARRAY_BUFFER,

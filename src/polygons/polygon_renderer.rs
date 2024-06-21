@@ -1,15 +1,15 @@
 use crate::{shader::{Shader, ShaderError}, vertex::{Vertex, VertexArray, VertexBuffer}};
 use nalgebra_glm as glm;
 
-pub struct Triangle<'a> {
+pub struct PolygonRenderer<'a> {
     shader: &'a Shader,
     vertices: Vec<Vertex>,
     vao: VertexArray,
     _vbo: VertexBuffer,
 }
 
-impl<'a> Triangle<'a> {
-    pub fn new(shader: &'a Shader, vertices: Vec<Vertex>) -> Self {
+impl<'a> PolygonRenderer<'a> {
+    pub fn create_polygon(shader: &'a Shader, vertices: Vec<Vertex>) -> Self {
         let vbo = VertexBuffer::new();
         vbo.bind();
         vbo.static_draw_data(&vertices);
@@ -30,13 +30,29 @@ impl<'a> Triangle<'a> {
         }
     }
 
-    pub fn draw(&self, transform: glm::Mat4) -> Result<(), ShaderError> {
+    pub fn shader(&self) -> &Shader {
+        self.shader
+    }
+
+    pub fn draw_instance(&self, transform: glm::Mat4) -> Result<(), ShaderError> {
         self.shader.start_using();
         self.vao.bind();
         self.shader.set_transform("model", &transform)?;
 
         unsafe {
             gl::DrawArrays(gl::TRIANGLES, 0, self.vertices.len() as i32);
+        }
+
+        Ok(())
+    }
+
+    pub fn draw_lines(&self, transform: glm::Mat4) -> Result<(), ShaderError> {
+        self.shader.start_using();
+        self.vao.bind();
+        self.shader.set_transform("model", &transform)?;
+
+        unsafe {
+            gl::DrawArrays(gl::LINES, 0, self.vertices.len() as i32);
         }
 
         Ok(())

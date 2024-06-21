@@ -1,10 +1,11 @@
-use std::{ffi::CString, fs::File, io::{self, Read}, path::{Path, PathBuf}};
+use std::{ffi::CString, fs::File, io::{self, Read}, path::{Path, PathBuf}, string::FromUtf8Error};
 
 #[derive(Debug)]
 pub enum ResourceError {
     CouldNotGetExePath,
     CouldNotLoad(io::Error),
     UnexpectedNullCharacter,
+    InvalidUtf8(FromUtf8Error),
 }
 
 impl From<io::Error> for ResourceError {
@@ -56,5 +57,17 @@ impl Resources {
         unsafe {
             Ok(CString::from_vec_with_nul_unchecked(buffer))
         }
+    }
+
+    pub fn load_string(&self, resource_name: &str) -> Result<String, ResourceError> {
+        let mut file = File::open(
+            Self::name_to_path(&self.root_path, resource_name)
+        )?;
+
+        let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize + 1);
+        file.read_to_end(&mut buffer)?;
+        let s = String::from_utf8(buffer).map_err(|e| ResourceError::InvalidUtf8(e))?;
+
+        Ok(s)
     }
 }

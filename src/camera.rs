@@ -1,10 +1,10 @@
 use nalgebra_glm as glm;
 use crate::utils::degree_to_radian;
 
-const DEFAULT_YAW: f32 = -90.0;
+const DEFAULT_YAW: f32 = 0.0;
 const DEFAULT_PITCH: f32 = 0.0;
 const DEFAULT_FOV: f32 = 45.0;
-const DEFAULT_POSITION: (f32, f32, f32) = (0.0, 0.0, 0.0);
+const DEFAULT_POSITION: (f32, f32, f32) = (0.0, 1.0, 0.0);
 const DEFAULT_WORLD_UP: (f32, f32, f32) = (0.0, 1.0, 0.0);
 const DEFAULT_FRONT: (f32, f32, f32) = (0.0, 0.0, -1.0);
 const DEFAULT_SENSITIVITY: f32 = 0.1;
