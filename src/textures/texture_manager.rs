@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::resources::Resources;
 use super::texture::Texture;
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 #[repr(u32)]
 pub enum TextureId {
     Unknown = 0x00,

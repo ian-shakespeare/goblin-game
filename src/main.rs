@@ -1,8 +1,8 @@
 use nalgebra_glm as glm;
 use sdl2;
-use std::path::Path;
+use std::{path::Path, rc::Rc, sync::Mutex};
 use open_gl_test::{
-    camera::Camera, controller::Controller, input::InputHandler, level::Level, resources::Resources, shader::Shader, textures::texture_manager::TextureManager
+    camera::Camera, components::component_manager::ComponentManager, controller::Controller, entity_manager::EntityManager, input::InputHandler, models::model_manager::{ModelId, ModelManager}, resources::Resources, shader::Shader, systems::render_system::RenderSystem, textures::texture_manager::{TextureId, TextureManager}
 };
 
 const SCREEN_WIDTH: f32 = 900.0;
@@ -41,10 +41,49 @@ fn main() {
         // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
     }
 
-    let texture_shader = Shader::from_resource(&res, "shaders/textured").unwrap();
+    let shader = Shader::from_resource(&res, "shaders/triangle").unwrap();
+    let model_manager = ModelManager::new(&shader);
     let texture_manager = TextureManager::new(&res);
 
-    let level = Level::from_resource(&res, "levels/test.level", &texture_shader, &texture_manager).unwrap();
+    let entity_manager = Rc::new(Mutex::new(EntityManager::new()));
+    let component_manager = Rc::new(Mutex::new(ComponentManager::new()));
+    component_manager
+        .lock()
+        .expect("Could not lock mutex")
+        .register_component(open_gl_test::components::ComponentKind::Transform);
+    component_manager
+        .lock()
+        .expect("Could not lock mutex")
+        .register_component(open_gl_test::components::ComponentKind::Model);
+    component_manager
+        .lock()
+        .expect("Could not lock mutex")
+        .register_component(open_gl_test::components::ComponentKind::Texture);
+    let mut render_system = RenderSystem::init(entity_manager, component_manager, model_manager, texture_manager).expect("No render system :(");
+
+    render_system.add_item(
+        glm::Vec3::new(5.0, 0.0, 5.0),
+        glm::Vec4::new(90.0, 1.0, 0.0, 0.0),
+        glm::Vec3::new(10.0, 10.0, 1.0),
+        ModelId::Plane,
+        TextureId::WoodPlanks,
+    ).expect("Could not add to render system");
+
+    render_system.add_item(
+        glm::Vec3::new(0.0, 1.0, 0.0),
+        glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
+        glm::Vec3::new(1.0, 1.0, 1.0),
+        ModelId::Cube,
+        TextureId::Grass,
+    ).expect("Could not add to render system");
+
+    render_system.add_item(
+        glm::Vec3::new(1.0, 2.0, 1.0),
+        glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
+        glm::Vec3::new(1.0, 1.0, 1.0),
+        ModelId::Cube,
+        TextureId::StoneBricks,
+    ).expect("Could not add to render system");
 
     let mut camera = Camera::new();
 
@@ -98,7 +137,7 @@ fn main() {
         let view_transform = camera.get_view_matrix();
         let projection_transform = glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
 
-        level.draw(&view_transform, &projection_transform);
+        render_system.draw(&view_transform, &projection_transform).expect("Couldn't draw");
         // box1.draw(&view_transform, &projection_transform);
         // box2.draw(&view_transform, &projection_transform);
 

@@ -1,11 +1,13 @@
 pub mod camera;
+pub mod components;
 pub mod controller;
-pub mod entities;
+pub mod entity_manager;
 pub mod input;
 pub mod level;
-pub mod polygons;
+pub mod models;
 pub mod resources;
 pub mod shader;
+pub mod systems;
 pub mod textures;
 pub mod utils;
 pub mod vertex;
