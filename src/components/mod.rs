@@ -1,12 +1,22 @@
+use gravity::GravityComponent;
 use model::ModelComponent;
+use rigid_body::RigidBodyComponent;
 use texture::TextureComponent;
 use transform::TransformComponent;
 
 pub mod component_array;
 pub mod component_manager;
+pub mod gravity;
 pub mod model;
+pub mod rigid_body;
 pub mod texture;
 pub mod transform;
+
+pub trait Component {
+    fn get_kind() -> ComponentKind;
+
+    fn get_value(self) -> ComponentValue;
+}
 
 #[derive(Debug)]
 pub enum ComponentError {
@@ -18,35 +28,53 @@ pub enum ComponentError {
 }
 
 #[derive(Clone, Copy)]
-pub enum Component {
+pub enum ComponentValue {
     Transform(TransformComponent),
     Model(ModelComponent),
     Texture(TextureComponent),
+    Gravity(GravityComponent),
+    RigidBody(RigidBodyComponent),
 }
 
-impl From<Component> for &'static str {
-    fn from(value: Component) -> Self {
+impl From<ComponentValue> for &'static str {
+    fn from(value: ComponentValue) -> Self {
         match value {
-            Component::Transform(_) => "Transform",
-            Component::Model(_) => "Model",
-            Component::Texture(_) => "Texture",
+            ComponentValue::Transform(_) => "Transform",
+            ComponentValue::Model(_) => "Model",
+            ComponentValue::Texture(_) => "Texture",
+            ComponentValue::Gravity(_) => "Gravity",
+            ComponentValue::RigidBody(_) => "RigidBody",
         }
     }
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub enum ComponentKind {
     Transform,
     Model,
     Texture,
+    Gravity,
+    RigidBody,
 }
 
-impl From<Component> for ComponentKind {
-    fn from(value: Component) -> Self {
+impl ComponentKind {
+    pub const VALUES: [Self; 5] = [
+        Self::Transform,
+        Self::Model,
+        Self::Texture,
+        Self::Gravity,
+        Self::RigidBody,
+    ];
+}
+
+impl From<ComponentValue> for ComponentKind {
+    fn from(value: ComponentValue) -> Self {
         match value {
-            Component::Transform(_) => ComponentKind::Transform,
-            Component::Model(_) => ComponentKind::Model,
-            Component::Texture(_) => ComponentKind::Texture,
+            ComponentValue::Transform(_) => ComponentKind::Transform,
+            ComponentValue::Model(_) => ComponentKind::Model,
+            ComponentValue::Texture(_) => ComponentKind::Texture,
+            ComponentValue::Gravity(_) => ComponentKind::Gravity,
+            ComponentValue::RigidBody(_) => ComponentKind::RigidBody,
         }
     }
 }

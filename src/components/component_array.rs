@@ -1,5 +1,5 @@
+use crate::entities::{Entity, MAX_ENTITIES};
 use std::collections::HashMap;
-use crate::entity_manager::{Entity, MAX_ENTITIES};
 
 use super::ComponentError;
 
@@ -12,7 +12,7 @@ pub struct ComponentArray<T> {
 
 impl<T> ComponentArray<T>
 where
-    T: Copy
+    T: Copy,
 {
     pub fn new() -> Self {
         let components = [None; MAX_ENTITIES];
@@ -38,19 +38,20 @@ where
         Ok(())
     }
 
-    pub fn get_entity(&mut self, entity: Entity) -> Option<T> {
+    pub fn get_entity(&self, entity: Entity) -> Option<T> {
         if entity >= MAX_ENTITIES as u32 {
             return None;
         }
         let index = self.entity_index_lookup.get(&entity)?;
 
-        self.components[*index]
+        *self.components.get(*index)?
     }
 
     pub fn remove_entity(&mut self, entity: Entity) -> Result<(), ComponentError> {
-        // TODO(ian) handle removing last entity better
+        // TODO: Handle removing last entity better.
 
-        let index_of_removed = self.entity_index_lookup
+        let index_of_removed = self
+            .entity_index_lookup
             .get(&entity)
             .ok_or(ComponentError::NoCorrespondingComponent)?
             .clone();
@@ -58,11 +59,14 @@ where
 
         self.components[index_of_removed] = self.components[index_of_last];
 
-        let entity_of_last = self.index_entity_lookup
+        let entity_of_last = self
+            .index_entity_lookup
             .get(&index_of_last)
             .ok_or(ComponentError::CannotFreeLastComponent)?;
-        self.entity_index_lookup.insert(*entity_of_last, index_of_removed);
-        self.index_entity_lookup.insert(index_of_removed, *entity_of_last);
+        self.entity_index_lookup
+            .insert(*entity_of_last, index_of_removed);
+        self.index_entity_lookup
+            .insert(index_of_removed, *entity_of_last);
 
         self.entity_index_lookup.remove(&entity);
         self.index_entity_lookup.remove(&index_of_last);

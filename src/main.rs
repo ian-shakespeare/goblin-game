@@ -1,9 +1,18 @@
 use nalgebra_glm as glm;
-use sdl2;
-use std::{path::Path, rc::Rc, sync::Mutex};
 use open_gl_test::{
-    camera::Camera, components::component_manager::ComponentManager, controller::Controller, entity_manager::EntityManager, input::InputHandler, models::model_manager::{ModelId, ModelManager}, resources::Resources, shader::Shader, systems::render_system::RenderSystem, textures::texture_manager::{TextureId, TextureManager}
+    camera::Camera,
+    components::{model::ModelComponent, texture::TextureComponent, transform::TransformComponent},
+    controller::Controller,
+    ecs::ECS,
+    input::InputHandler,
+    models::model_manager::{ModelId, ModelManager},
+    resources::Resources,
+    shader::Shader,
+    systems::render_system::RenderSystem,
+    textures::texture_manager::{TextureId, TextureManager},
 };
+use sdl2::{self, keyboard::Keycode};
+use std::{path::Path, sync::Mutex};
 
 const SCREEN_WIDTH: f32 = 900.0;
 const SCREEN_HEIGHT: f32 = 700.0;
@@ -28,12 +37,13 @@ fn main() {
         .position_centered()
         .resizable()
         .build()
-        .unwrap();
+        .expect("Could not create video subsystem.");
 
     sdl.mouse().set_relative_mouse_mode(true);
 
     let _gl_context = window.gl_create_context().unwrap();
-    let _gl = gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void);
+    let _gl =
+        gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void);
 
     unsafe {
         gl::Viewport(0, 0, SCREEN_WIDTH as i32, SCREEN_HEIGHT as i32);
@@ -45,60 +55,95 @@ fn main() {
     let model_manager = ModelManager::new(&shader);
     let texture_manager = TextureManager::new(&res);
 
-    let entity_manager = Rc::new(Mutex::new(EntityManager::new()));
-    let component_manager = Rc::new(Mutex::new(ComponentManager::new()));
-    component_manager
-        .lock()
-        .expect("Could not lock mutex")
-        .register_component(open_gl_test::components::ComponentKind::Transform);
-    component_manager
-        .lock()
-        .expect("Could not lock mutex")
-        .register_component(open_gl_test::components::ComponentKind::Model);
-    component_manager
-        .lock()
-        .expect("Could not lock mutex")
-        .register_component(open_gl_test::components::ComponentKind::Texture);
-    let mut render_system = RenderSystem::init(entity_manager, component_manager, model_manager, texture_manager).expect("No render system :(");
+    let ecs = Mutex::new(ECS::new());
+    let mut tmp = ecs.lock().expect("Could not lock ECS.");
+    tmp.register_component::<TransformComponent>();
+    tmp.register_component::<ModelComponent>();
+    tmp.register_component::<TextureComponent>();
 
-    render_system.add_item(
-        glm::Vec3::new(5.0, 0.0, 5.0),
-        glm::Vec4::new(90.0, 1.0, 0.0, 0.0),
-        glm::Vec3::new(10.0, 10.0, 1.0),
-        ModelId::Plane,
-        TextureId::WoodPlanks,
-    ).expect("Could not add to render system");
+    // Floor
+    let model = ModelComponent {
+        id: ModelId::Plane,
+        tex_coords: [glm::Vec2::identity(); 6],
+    };
+    let transform = TransformComponent {
+        position: glm::Vec3::new(5.0, 0.0, 5.0),
+        rotation: glm::Vec4::new(90.0, 1.0, 0.0, 0.0),
+        scale: glm::Vec3::new(10.0, 10.0, 1.0),
+    };
+    let texture = TextureComponent {
+        id: TextureId::WoodPlanks,
+    };
+    let floor = tmp.create_entity();
+    tmp.add_component(floor, model);
+    tmp.add_component(floor, transform);
+    tmp.add_component(floor, texture);
 
-    render_system.add_item(
-        glm::Vec3::new(0.0, 1.0, 0.0),
-        glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
-        glm::Vec3::new(1.0, 1.0, 1.0),
-        ModelId::Cube,
-        TextureId::Grass,
-    ).expect("Could not add to render system");
+    // Block 1
+    let model = ModelComponent {
+        id: ModelId::Cube,
+        tex_coords: [glm::Vec2::identity(); 6],
+    };
+    let transform = TransformComponent {
+        position: glm::Vec3::new(0.0, 1.0, 0.0),
+        rotation: glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
+        scale: glm::Vec3::new(1.0, 1.0, 1.0),
+    };
+    let texture = TextureComponent {
+        id: TextureId::Grass,
+    };
+    let block1 = tmp.create_entity();
+    tmp.add_component(block1, model);
+    tmp.add_component(block1, transform);
+    tmp.add_component(block1, texture);
 
-    render_system.add_item(
-        glm::Vec3::new(1.0, 2.0, 1.0),
-        glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
-        glm::Vec3::new(1.0, 1.0, 1.0),
-        ModelId::Cube,
-        TextureId::StoneBricks,
-    ).expect("Could not add to render system");
+    // Block 2
+    let model = ModelComponent {
+        id: ModelId::Cube,
+        tex_coords: [glm::Vec2::identity(); 6],
+    };
+    let transform = TransformComponent {
+        position: glm::Vec3::new(1.0, 2.0, 1.0),
+        rotation: glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
+        scale: glm::Vec3::new(1.0, 1.0, 1.0),
+    };
+    let texture = TextureComponent {
+        id: TextureId::StoneBricks,
+    };
+    let block2 = tmp.create_entity();
+    tmp.add_component(block2, model);
+    tmp.add_component(block2, transform);
+    tmp.add_component(block2, texture);
+
+    let mut render_system =
+        RenderSystem::init(&ecs, model_manager, texture_manager).expect("No render system :(");
+    render_system.add_entity(floor);
+    render_system.add_entity(block1);
+    render_system.add_entity(block2);
 
     let mut camera = Camera::new();
 
     let mut tick_count: u32 = 0;
-    let mut last_tick_ms: f32 = start_time.elapsed().as_secs_f32()  * 1000.0;
+    let mut last_tick_ms: f32 = start_time.elapsed().as_secs_f32() * 1000.0;
 
     let event_pump = sdl.event_pump().unwrap();
     let mut input_handler = InputHandler::new(event_pump);
     let mut controller = Controller::new();
+
+    drop(tmp);
 
     'main: loop {
         let current_time_ms = start_time.elapsed().as_secs_f32() * 1000.0;
         let inputs = input_handler.get_input_events();
         if inputs.has_quit {
             break 'main;
+        }
+
+        if inputs.pressed_keys.contains(&Keycode::X) {
+            render_system.remove_entity(floor);
+            ecs.lock()
+                .expect("Couldn't lock ecs.")
+                .destroy_entity(floor);
         }
 
         // process mouse inputs
@@ -119,7 +164,8 @@ fn main() {
         if current_time_ms >= last_tick_ms + TICK_RATE {
             let camera_translate_vec = controller.get_direction_vec(&camera.front(), &camera.up());
             if let Some(vec) = camera_translate_vec {
-                camera.translate(camera.speed() * glm::Vec3::new(vec.x, vec.y, vec.z)); // remove vec.y to not move vertically
+                camera.translate(camera.speed() * glm::Vec3::new(vec.x, vec.y, vec.z));
+                // remove vec.y to not move vertically
             }
 
             // update tick info
@@ -135,16 +181,20 @@ fn main() {
         }
 
         let view_transform = camera.get_view_matrix();
-        let projection_transform = glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
+        let projection_transform =
+            glm::perspective::<f32>(SCREEN_WIDTH / SCREEN_HEIGHT, camera.fov(), 0.1, 100.0);
 
-        render_system.draw(&view_transform, &projection_transform).expect("Couldn't draw");
-        // box1.draw(&view_transform, &projection_transform);
-        // box2.draw(&view_transform, &projection_transform);
+        render_system
+            .draw(&view_transform, &projection_transform)
+            .expect("Couldn't draw");
 
         window.gl_swap_window();
     }
 
     let total_run_time = start_time.elapsed().as_secs_f32();
     let average_tick_rate = tick_count as f32 / total_run_time;
-    println!("Ran for {}s with {} ticks for a tick rate of {} per second", total_run_time, tick_count, average_tick_rate);
+    println!(
+        "Ran for {}s with {} ticks for a tick rate of {} per second",
+        total_run_time, tick_count, average_tick_rate
+    );
 }

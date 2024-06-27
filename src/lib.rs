@@ -1,7 +1,8 @@
 pub mod camera;
 pub mod components;
 pub mod controller;
-pub mod entity_manager;
+pub mod ecs;
+pub mod entities;
 pub mod input;
 pub mod level;
 pub mod models;
