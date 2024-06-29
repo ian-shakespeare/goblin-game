@@ -47,6 +47,16 @@ impl ECS {
         self.component_manager.get_component::<C>(entity)
     }
 
+    pub fn get_all_components<C: Component>(&self) -> Vec<&ComponentValue> {
+        self.component_manager.get_all_components::<C>()
+    }
+
+    pub fn set_component(&mut self, entity: Entity, component: ComponentValue) {
+        self.component_manager
+            .set_component(entity, component)
+            .expect("Could not set component.");
+    }
+
     pub fn remove_component<C: Component>(&mut self, entity: Entity) {
         self.component_manager
             .remove_component::<C>(entity)

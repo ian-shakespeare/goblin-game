@@ -1,14 +1,18 @@
 use nalgebra_glm as glm;
 use open_gl_test::{
     camera::Camera,
-    components::{model::ModelComponent, texture::TextureComponent, transform::TransformComponent},
+    components::{
+        collision::CollisionComponent, gravity::GravityComponent, mesh::MeshComponent,
+        rigid_body::RigidBodyComponent, texture::TextureComponent, transform::TransformComponent,
+    },
     controller::Controller,
     ecs::ECS,
     input::InputHandler,
-    models::model_manager::{ModelId, ModelManager},
+    mesh_manager::MeshManager,
+    models::{cube::get_cube_mesh, plane::get_plane_mesh},
     resources::Resources,
     shader::Shader,
-    systems::render_system::RenderSystem,
+    systems::{physics_system::PhysicsSystem, render_system::RenderSystem},
     textures::texture_manager::{TextureId, TextureManager},
 };
 use sdl2::{self, keyboard::Keycode};
@@ -52,24 +56,30 @@ fn main() {
     }
 
     let shader = Shader::from_resource(&res, "shaders/triangle").unwrap();
-    let model_manager = ModelManager::new(&shader);
+    let mut mesh_manager = MeshManager::new();
     let texture_manager = TextureManager::new(&res);
 
     let ecs = Mutex::new(ECS::new());
     let mut tmp = ecs.lock().expect("Could not lock ECS.");
     tmp.register_component::<TransformComponent>();
-    tmp.register_component::<ModelComponent>();
+    tmp.register_component::<MeshComponent>();
     tmp.register_component::<TextureComponent>();
+    tmp.register_component::<RigidBodyComponent>();
+    tmp.register_component::<GravityComponent>();
+    tmp.register_component::<CollisionComponent>();
+
+    let grass_texture = texture_manager.get_texture(TextureId::Grass);
+    let stone_brick_texture = texture_manager.get_texture(TextureId::StoneBricks);
+
+    let plane_id = mesh_manager.add_mesh(get_plane_mesh(vec![stone_brick_texture]));
+    let cube_id = mesh_manager.add_mesh(get_cube_mesh(vec![grass_texture]));
 
     // Floor
-    let model = ModelComponent {
-        id: ModelId::Plane,
-        tex_coords: [glm::Vec2::identity(); 6],
-    };
+    let model = MeshComponent { id: plane_id };
     let transform = TransformComponent {
-        position: glm::Vec3::new(5.0, 0.0, 5.0),
-        rotation: glm::Vec4::new(90.0, 1.0, 0.0, 0.0),
-        scale: glm::Vec3::new(10.0, 10.0, 1.0),
+        position: glm::Vec3::new(0.0, 0.0, 0.0),
+        rotation: glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
+        scale: glm::Vec3::new(1.0, 1.0, 1.0),
     };
     let texture = TextureComponent {
         id: TextureId::WoodPlanks,
@@ -79,11 +89,21 @@ fn main() {
     tmp.add_component(floor, transform);
     tmp.add_component(floor, texture);
 
-    // Block 1
-    let model = ModelComponent {
-        id: ModelId::Cube,
-        tex_coords: [glm::Vec2::identity(); 6],
+    // Floor Collider
+    let collision = CollisionComponent {
+        normal: glm::Vec3::new(0.0, 1.0, 0.0),
+        position: glm::Vec3::new(0.0, 0.0, 0.0),
+        vertices: [
+            glm::Vec3::new(5.0, 0.0, 0.0),
+            glm::Vec3::new(-5.0, 0.0, 5.0),
+            glm::Vec3::new(-5.0, 0.0, -5.0),
+        ],
     };
+    let floor_collider = tmp.create_entity();
+    tmp.add_component(floor_collider, collision);
+
+    // Block 1
+    let model = MeshComponent { id: cube_id };
     let transform = TransformComponent {
         position: glm::Vec3::new(0.0, 1.0, 0.0),
         rotation: glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
@@ -98,10 +118,7 @@ fn main() {
     tmp.add_component(block1, texture);
 
     // Block 2
-    let model = ModelComponent {
-        id: ModelId::Cube,
-        tex_coords: [glm::Vec2::identity(); 6],
-    };
+    let model = MeshComponent { id: cube_id };
     let transform = TransformComponent {
         position: glm::Vec3::new(1.0, 2.0, 1.0),
         rotation: glm::Vec4::new(0.0, 0.0, 0.0, 0.0),
@@ -115,12 +132,47 @@ fn main() {
     tmp.add_component(block2, transform);
     tmp.add_component(block2, texture);
 
-    let mut render_system =
-        RenderSystem::init(&ecs, model_manager, texture_manager).expect("No render system :(");
+    // Falling Block
+    let model = MeshComponent { id: cube_id };
+    let transform = TransformComponent {
+        position: glm::Vec3::new(0.0, 5.0, 0.0),
+        rotation: glm::Vec4::new(45.0, 0.0, 1.0, 0.0),
+        scale: glm::Vec3::new(1.0, 1.0, 1.0),
+    };
+    let texture = TextureComponent {
+        id: TextureId::StoneBricks,
+    };
+    let rigid_body = RigidBodyComponent {
+        acceleration: glm::Vec3::new(0.0, 0.0, 0.0),
+        collision_x_offset: 1.0,
+        collision_y_offset: 1.0,
+        collision_z_offset: 1.0,
+        velocity: glm::Vec3::new(0.0, 0.0, 0.0),
+    };
+    let gravity = GravityComponent {
+        force: glm::Vec3::new(0.0, -0.001, 0.0),
+    };
+    let falling_block = tmp.create_entity();
+    tmp.add_component(falling_block, model);
+    tmp.add_component(falling_block, transform);
+    tmp.add_component(falling_block, texture);
+    tmp.add_component(falling_block, rigid_body);
+    tmp.add_component(falling_block, gravity);
+
+    // Render System
+    let mut render_system = RenderSystem::init(&ecs, mesh_manager, &shader)
+        .expect("Could not initialize render system.");
     render_system.add_entity(floor);
     render_system.add_entity(block1);
     render_system.add_entity(block2);
+    render_system.add_entity(falling_block);
 
+    // Physics System
+    let mut physics_system =
+        PhysicsSystem::init(&ecs).expect("Could not initialize physics system.");
+    physics_system.add_entity(falling_block);
+
+    // Camera
     let mut camera = Camera::new();
 
     let mut tick_count: u32 = 0;
@@ -140,10 +192,16 @@ fn main() {
         }
 
         if inputs.pressed_keys.contains(&Keycode::X) {
-            render_system.remove_entity(floor);
-            ecs.lock()
-                .expect("Couldn't lock ecs.")
-                .destroy_entity(floor);
+            let mut ecs = ecs.lock().expect("Couldn't lock ecs.");
+            render_system.remove_entity(block1);
+            ecs.destroy_entity(block1);
+
+            render_system.remove_entity(block2);
+            ecs.destroy_entity(block2);
+
+            render_system.remove_entity(falling_block);
+            physics_system.remove_entity(falling_block);
+            ecs.destroy_entity(falling_block);
         }
 
         // process mouse inputs
@@ -160,13 +218,17 @@ fn main() {
             break 'main;
         }
 
-        // TICK
+        // TICK - fixed update
         if current_time_ms >= last_tick_ms + TICK_RATE {
             let camera_translate_vec = controller.get_direction_vec(&camera.front(), &camera.up());
             if let Some(vec) = camera_translate_vec {
                 camera.translate(camera.speed() * glm::Vec3::new(vec.x, vec.y, vec.z));
                 // remove vec.y to not move vertically
             }
+
+            physics_system
+                .update()
+                .expect("Could not update physics system.");
 
             // update tick info
             tick_count += 1;

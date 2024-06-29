@@ -40,7 +40,29 @@ impl ComponentManager {
         self.component_arrays.get(&kind)?.get_entity(entity)
     }
 
-    pub fn remove_component<C: Component>(&mut self, entity: Entity) -> Result<(), ComponentError> {
+    pub fn get_all_components<C: Component>(&self) -> Vec<&ComponentValue> {
+        let array = self.component_arrays.get(&C::get_kind()).unwrap();
+        array.into()
+    }
+
+    pub fn set_component(
+        &mut self,
+        entity: Entity,
+        component: ComponentValue,
+    ) -> Result<(), ComponentError> {
+        let array = self
+            .component_arrays
+            .get_mut(&component.into())
+            .ok_or(ComponentError::NoCorrespondingComponent)?;
+        array.set_entity(entity, component)?;
+
+        Ok(())
+    }
+
+    pub fn remove_component<C: Component>(
+        &mut self,
+        entity: Entity,
+    ) -> Result<(), ComponentError> {
         let kind = C::get_kind();
         self.component_arrays
             .get_mut(&kind)

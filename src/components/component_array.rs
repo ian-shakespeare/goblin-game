@@ -10,6 +10,26 @@ pub struct ComponentArray<T> {
     count: usize,
 }
 
+impl<'a, T> From<&'a ComponentArray<T>> for Vec<&'a T>
+where
+    T: Copy,
+{
+    fn from(value: &'a ComponentArray<T>) -> Self {
+        let mut vec: Vec<&T> = Vec::new();
+        for component in value
+            .components
+            .iter()
+            .filter(|component| (**component).is_some())
+        {
+            if let Some(component) = component {
+                vec.push(component);
+            }
+        }
+
+        vec
+    }
+}
+
 impl<T> ComponentArray<T>
 where
     T: Copy,
@@ -45,6 +65,21 @@ where
         let index = self.entity_index_lookup.get(&entity)?;
 
         *self.components.get(*index)?
+    }
+
+    pub fn set_entity(&mut self, entity: Entity, data: T) -> Result<(), ComponentError> {
+        if entity >= MAX_ENTITIES as u32 {
+            return Err(ComponentError::OutOfRange);
+        }
+        let index = self
+            .entity_index_lookup
+            .get(&entity)
+            .ok_or(ComponentError::MissingComponent("Set entity."))?;
+
+        // TODO: Handle this setting safely.
+        self.components[*index] = Some(data);
+
+        Ok(())
     }
 
     pub fn remove_entity(&mut self, entity: Entity) -> Result<(), ComponentError> {

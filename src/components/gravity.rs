@@ -6,7 +6,7 @@ pub struct GravityComponent {
     pub force: glm::Vec3,
 }
 
-impl Component for GravityComponent {
+impl<'a> Component for GravityComponent {
     fn get_kind() -> ComponentKind {
         ComponentKind::Gravity
     }

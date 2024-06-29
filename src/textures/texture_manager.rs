@@ -1,6 +1,6 @@
-use std::{collections::HashMap, rc::Rc};
-use crate::resources::Resources;
 use super::texture::Texture;
+use crate::resources::Resources;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 #[repr(u32)]
@@ -25,25 +25,41 @@ impl From<u32> for TextureId {
 }
 
 pub struct TextureManager {
-    textures: HashMap<TextureId, Rc<Texture>>,
+    textures: HashMap<TextureId, Texture>,
 }
 
 impl TextureManager {
     pub fn new(res: &Resources) -> Self {
         let textures = HashMap::from([
-            (TextureId::Unknown, Rc::new(Texture::from_resource(res, "textures/unknown.png"))),
-            (TextureId::StoneBricks, Rc::new(Texture::from_resource(res, "textures/stone_bricks.png"))),
-            (TextureId::WoodPlanks, Rc::new(Texture::from_resource(res, "textures/wood_planks.png"))),
-            (TextureId::Dirt, Rc::new(Texture::from_resource(res, "textures/dirt.png"))),
-            (TextureId::Grass, Rc::new(Texture::from_resource(res, "textures/grass.png"))),
+            (
+                TextureId::Unknown,
+                Texture::from_resource(res, "textures/unknown.png"),
+            ),
+            (
+                TextureId::StoneBricks,
+                Texture::from_resource(res, "textures/stone_bricks.png"),
+            ),
+            (
+                TextureId::WoodPlanks,
+                Texture::from_resource(res, "textures/wood_planks.png"),
+            ),
+            (
+                TextureId::Dirt,
+                Texture::from_resource(res, "textures/dirt.png"),
+            ),
+            (
+                TextureId::Grass,
+                Texture::from_resource(res, "textures/grass.png"),
+            ),
         ]);
 
-        Self {
-            textures,
-        }
+        Self { textures }
     }
 
-    pub fn get_texture(&self, id: TextureId) -> Rc<Texture> {
-        self.textures.get(&id).cloned().expect("Texture does not exist")
+    pub fn get_texture(&self, id: TextureId) -> Texture {
+        self.textures
+            .get(&id)
+            .cloned()
+            .expect("Texture does not exist")
     }
 }

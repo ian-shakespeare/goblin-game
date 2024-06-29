@@ -1,39 +1,33 @@
+use super::SystemError;
 use crate::{
     components::{
-        model::ModelComponent, texture::TextureComponent, transform::TransformComponent,
+        mesh::MeshComponent, transform::TransformComponent,
         ComponentError, ComponentValue,
-    },
-    ecs::ECS,
-    entities::Entity,
-    models::model_manager::ModelManager,
-    textures::texture_manager::TextureManager,
-    utils::degree_to_radian,
+    }, ecs::ECS, entities::Entity, mesh_manager::MeshManager, shader::Shader, utils::degree_to_radian
 };
 use nalgebra_glm as glm;
 use std::{collections::HashSet, sync::Mutex};
 
-use super::SystemError;
-
 pub struct RenderSystem<'a> {
     ecs: &'a Mutex<ECS>,
     entities: HashSet<Entity>,
-    model_manager: ModelManager<'a>,
-    texture_manager: TextureManager,
+    mesh_manager: MeshManager,
+    shader: &'a Shader,
 }
 
 impl<'a> RenderSystem<'a> {
     pub fn init(
         ecs: &'a Mutex<ECS>,
-        model_manager: ModelManager<'a>,
-        texture_manager: TextureManager,
+        mesh_manager: MeshManager,
+        shader: &'a Shader,
     ) -> Result<Self, SystemError> {
         let entities = HashSet::new();
 
         Ok(Self {
             ecs,
             entities,
-            model_manager,
-            texture_manager,
+            mesh_manager,
+            shader,
         })
     }
 
@@ -78,36 +72,24 @@ impl<'a> RenderSystem<'a> {
             }
             model_transform = glm::scale(&model_transform, &scale);
 
-            let texture_component = ecs.get_component::<TextureComponent>(*entity).ok_or(
-                SystemError::ComponentError(ComponentError::MissingComponent("Texture")),
-            )?;
-            let TextureComponent { id } = match texture_component {
-                ComponentValue::Texture(texture) => texture,
-                _ => {
-                    return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Texture"),
-                    ))
-                }
-            };
-            let texture = self.texture_manager.get_texture(id);
-            texture.bind();
-
-            let model_component =
-                ecs.get_component::<ModelComponent>(*entity)
+            let mesh_component =
+                ecs.get_component::<MeshComponent>(*entity)
                     .ok_or(SystemError::ComponentError(
                         ComponentError::MissingComponent("Model"),
                     ))?;
-            let ModelComponent { id, tex_coords: _ } = match model_component {
-                ComponentValue::Model(model) => model,
+            let MeshComponent {
+                id,
+            } = match mesh_component {
+                ComponentValue::Mesh(model) => model,
                 _ => {
                     return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Model"),
+                        ComponentError::MissingComponent("Mesh"),
                     ))
                 }
             };
-            let model = self.model_manager.get_model(id);
-            model
-                .draw_instance(&model_transform, view_transform, projection_transform)
+            let mesh = self.mesh_manager.get_mesh(id).expect("Missing mesh");
+            mesh
+                .draw_instance(self.shader, &model_transform, view_transform, projection_transform)
                 .expect("Shader error drawing entity");
         }
 

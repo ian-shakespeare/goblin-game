@@ -1,8 +1,8 @@
-use gl::types::{GLuint, GLvoid};
+use crate::resources::Resources;
+use gl::types::{GLenum, GLuint, GLvoid};
 use image::io::Reader as ImageReader;
 
-use crate::resources::Resources;
-
+#[derive(Clone)]
 pub struct Texture {
     pub id: GLuint,
 }
@@ -13,10 +13,26 @@ impl Texture {
         unsafe {
             gl::GenTextures(1, &mut id);
             gl::BindTexture(gl::TEXTURE_2D, id);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT.try_into().unwrap()); // CLAMP_TO_EDGE or REPEAT
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT.try_into().unwrap()); // CLAMP_TO_EDGE or REPEAT
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST.try_into().unwrap()); // LINEAR or NEAREST
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST.try_into().unwrap()); // LINEAR or NEAREST
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_WRAP_S,
+                gl::REPEAT.try_into().unwrap(),
+            ); // CLAMP_TO_EDGE or REPEAT
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_WRAP_T,
+                gl::REPEAT.try_into().unwrap(),
+            ); // CLAMP_TO_EDGE or REPEAT
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_MIN_FILTER,
+                gl::NEAREST.try_into().unwrap(),
+            ); // LINEAR or NEAREST
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_MAG_FILTER,
+                gl::NEAREST.try_into().unwrap(),
+            ); // LINEAR or NEAREST
         }
         let img = ImageReader::open(res.get_full_path(name))
             .unwrap()
@@ -41,14 +57,18 @@ impl Texture {
             gl::GenerateMipmap(gl::TEXTURE_2D);
         }
 
-        Self {
-            id,
-        }
+        Self { id }
     }
 
     pub fn bind(&self) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.id);
+        }
+    }
+
+    pub fn active(texture: GLenum) {
+        unsafe {
+            gl::ActiveTexture(texture);
         }
     }
 }

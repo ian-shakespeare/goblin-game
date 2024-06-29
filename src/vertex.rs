@@ -1,36 +1,44 @@
-use gl::{self, types::{GLint, GLsizeiptr, GLuint, GLvoid}};
+use gl::{
+    self,
+    types::{GLint, GLsizeiptr, GLuint, GLvoid},
+};
 use nalgebra_glm as glm;
 
 #[repr(C, packed)]
 pub struct Vertex {
     pub position: glm::Vec3,
-    pub texture_coords: glm::Vec2,
+    pub normal: glm::Vec3,
+    pub texture_coordinates: glm::Vec2,
 }
 
-impl From<((f32, f32, f32), (f32, f32))> for Vertex {
-    fn from(value: ((f32, f32, f32), (f32, f32))) -> Self {
-        let (position, texture_coords) = value;
+impl From<((f32, f32, f32), (f32, f32, f32), (f32, f32))> for Vertex {
+    fn from(value: ((f32, f32, f32), (f32, f32, f32), (f32, f32))) -> Self {
+        let (position, normal, texture_coords) = value;
         let (pos_x, pos_y, pos_z) = position;
+        let (norm_x, norm_y, norm_z) = normal;
         let (tex_x, tex_y) = texture_coords;
 
         Self {
             position: glm::Vec3::new(pos_x, pos_y, pos_z),
-            texture_coords: glm::Vec2::new(tex_x, tex_y),
+            normal: glm::Vec3::new(norm_x, norm_y, norm_z),
+            texture_coordinates: glm::Vec2::new(tex_x, tex_y),
         }
     }
 }
 
 impl Vertex {
-    pub fn new(position: glm::Vec3, texture_coords: glm::Vec2) -> Self {
+    pub fn new(position: glm::Vec3, normal: glm::Vec3, texture_coordinates: glm::Vec2) -> Self {
         Self {
             position,
-            texture_coords,
+            normal,
+            texture_coordinates,
         }
     }
 
     pub fn configure_attributes() {
         unsafe {
-            // position
+            // Positions
+            gl::EnableVertexAttribArray(0);
             gl::VertexAttribPointer(
                 0,
                 3,
@@ -39,17 +47,28 @@ impl Vertex {
                 std::mem::size_of::<Vertex>() as GLint,
                 std::ptr::null(),
             );
-            gl::EnableVertexAttribArray(0);
-            // texture
+
+            // Normals
+            gl::EnableVertexAttribArray(1);
             gl::VertexAttribPointer(
                 1,
-                2,
+                3,
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<Vertex>() as GLint,
                 std::mem::size_of::<glm::Vec3>() as *const GLvoid,
             );
-            gl::EnableVertexAttribArray(1);
+
+            // Texture Coordinates
+            gl::EnableVertexAttribArray(2);
+            gl::VertexAttribPointer(
+                2,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                std::mem::size_of::<Vertex>() as GLint,
+                (2 * std::mem::size_of::<glm::Vec3>()) as *const GLvoid,
+            );
         }
     }
 }
@@ -67,15 +86,13 @@ impl Drop for VertexArray {
 }
 
 impl VertexArray {
-    pub fn new() -> Self {
+    pub fn generate() -> Self {
         let mut vao: GLuint = 0;
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
         }
 
-        Self {
-            vao,
-        }
+        Self { vao }
     }
 
     pub fn bind(&self) {
@@ -104,15 +121,13 @@ impl Drop for VertexBuffer {
 }
 
 impl VertexBuffer {
-    pub fn new() -> Self {
+    pub fn generate() -> Self {
         let mut vbo: GLuint = 0;
         unsafe {
             gl::GenBuffers(1, &mut vbo);
         }
 
-        Self {
-            vbo,
-        }
+        Self { vbo }
     }
 
     pub fn bind(&self) {
@@ -127,14 +142,14 @@ impl VertexBuffer {
         }
     }
 
-    pub fn static_draw_data<T>(&self, data: &[T]) {
+    pub fn buffer_data<T>(&self, data: &[T]) {
         unsafe {
             gl::BufferData(
                 gl::ARRAY_BUFFER,
                 (data.len() * std::mem::size_of::<Vertex>()) as GLsizeiptr,
                 data.as_ptr() as *const GLvoid,
                 gl::STATIC_DRAW,
-           );
+            );
         }
     }
 }
@@ -152,37 +167,35 @@ impl Drop for ElementBuffer {
 }
 
 impl ElementBuffer {
-    pub fn new() -> Self {
+    pub fn generate() -> Self {
         let mut ebo: GLuint = 0;
         unsafe {
             gl::GenBuffers(1, &mut ebo);
         }
 
-        Self {
-            ebo,
-        }
+        Self { ebo }
     }
 
     pub fn bind(&self) {
         unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.ebo);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
         }
     }
 
     pub fn unbind(&self) {
         unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
         }
     }
 
-    pub fn static_draw_indices<T>(&self, indices: &[T]) {
+    pub fn buffer_data(&self, indices: &[GLuint]) {
         unsafe {
             gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (indices.len() * std::mem::size_of::<T>()) as GLsizeiptr,
+                gl::ELEMENT_ARRAY_BUFFER,
+                (indices.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
                 indices.as_ptr() as *const GLvoid,
                 gl::STATIC_DRAW,
-           );
+            );
         }
     }
 }

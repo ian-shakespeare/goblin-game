@@ -11,7 +11,7 @@ impl Component for TextureComponent {
         ComponentKind::Texture
     }
 
-    fn get_value(self) -> super::ComponentValue {
+    fn get_value(self) -> ComponentValue {
         ComponentValue::Texture(self)
     }
 }
