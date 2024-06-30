@@ -2,13 +2,13 @@ use gl::{
     self,
     types::{GLint, GLsizeiptr, GLuint, GLvoid},
 };
-use nalgebra_glm as glm;
+use nalgebra_glm::{Vec2, Vec3};
 
 #[repr(C, packed)]
 pub struct Vertex {
-    pub position: glm::Vec3,
-    pub normal: glm::Vec3,
-    pub texture_coordinates: glm::Vec2,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub texture_coordinates: Vec2,
 }
 
 impl From<((f32, f32, f32), (f32, f32, f32), (f32, f32))> for Vertex {
@@ -19,15 +19,15 @@ impl From<((f32, f32, f32), (f32, f32, f32), (f32, f32))> for Vertex {
         let (tex_x, tex_y) = texture_coords;
 
         Self {
-            position: glm::Vec3::new(pos_x, pos_y, pos_z),
-            normal: glm::Vec3::new(norm_x, norm_y, norm_z),
-            texture_coordinates: glm::Vec2::new(tex_x, tex_y),
+            position: Vec3::new(pos_x, pos_y, pos_z),
+            normal: Vec3::new(norm_x, norm_y, norm_z),
+            texture_coordinates: Vec2::new(tex_x, tex_y),
         }
     }
 }
 
 impl Vertex {
-    pub fn new(position: glm::Vec3, normal: glm::Vec3, texture_coordinates: glm::Vec2) -> Self {
+    pub fn new(position: Vec3, normal: Vec3, texture_coordinates: Vec2) -> Self {
         Self {
             position,
             normal,
@@ -56,7 +56,7 @@ impl Vertex {
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<Vertex>() as GLint,
-                std::mem::size_of::<glm::Vec3>() as *const GLvoid,
+                std::mem::size_of::<Vec3>() as *const GLvoid,
             );
 
             // Texture Coordinates
@@ -67,7 +67,7 @@ impl Vertex {
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<Vertex>() as GLint,
-                (2 * std::mem::size_of::<glm::Vec3>()) as *const GLvoid,
+                (2 * std::mem::size_of::<Vec3>()) as *const GLvoid,
             );
         }
     }

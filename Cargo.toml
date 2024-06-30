@@ -1,5 +1,5 @@
 [package]
-name = "open_gl_test"
+name = "goblin_game"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,6 +11,7 @@ gl = "0.14.0"
 rand = "0.8.5"
 image = "0.25.1"
 nalgebra-glm = "0.3"
+itertools = "0.13.0"
 
 [build-dependencies]
 walkdir = "2.1"

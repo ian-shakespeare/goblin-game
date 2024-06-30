@@ -1,11 +1,8 @@
 use super::{Component, ComponentKind, ComponentValue};
-use nalgebra_glm as glm;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct CollisionComponent {
-    pub normal: glm::Vec3,
-    pub position: glm::Vec3,
-    pub vertices: [glm::Vec3; 3],
+    pub mesh_id: u32,
 }
 
 impl Component for CollisionComponent {

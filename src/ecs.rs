@@ -47,8 +47,10 @@ impl ECS {
         self.component_manager.get_component::<C>(entity)
     }
 
-    pub fn get_all_components<C: Component>(&self) -> Vec<&ComponentValue> {
-        self.component_manager.get_all_components::<C>()
+    pub fn get_all_entities_with_component<C: Component>(&self) -> Vec<Entity> {
+        let signature: Signature = C::get_kind().into();
+        self.entity_manager
+            .get_all_entities_with_signature(signature)
     }
 
     pub fn set_component(&mut self, entity: Entity, component: ComponentValue) {

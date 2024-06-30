@@ -57,4 +57,8 @@ impl Signature {
     pub fn get_value(&self) -> u32 {
         self.value
     }
+
+    pub fn equals(&self, other: u32) -> bool {
+        self.value & other != 0
+    }
 }

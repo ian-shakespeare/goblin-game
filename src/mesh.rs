@@ -4,16 +4,17 @@ use crate::{
     vertex::{ElementBuffer, Vertex, VertexArray, VertexBuffer},
 };
 use gl::types::GLuint;
-use nalgebra_glm as glm;
+use nalgebra_glm::Mat4;
 
 pub struct Mesh {
+    vertices: Vec<Vertex>,
     indices: Vec<GLuint>,
     textures: Vec<Texture>,
 
     vao: VertexArray,
 }
 
-impl Mesh {
+impl<'a> Mesh {
     pub fn new(vertices: Vec<Vertex>, indices: Vec<GLuint>, textures: Vec<Texture>) -> Self {
         let vao = VertexArray::generate();
         let vbo = VertexBuffer::generate();
@@ -31,6 +32,7 @@ impl Mesh {
         vao.unbind();
 
         Self {
+            vertices,
             indices,
             textures,
             vao,
@@ -40,9 +42,9 @@ impl Mesh {
     pub fn draw_instance(
         &self,
         shader: &Shader,
-        model_transform: &glm::Mat4,
-        view_transform: &glm::Mat4,
-        projection_transform: &glm::Mat4,
+        model_transform: &Mat4,
+        view_transform: &Mat4,
+        projection_transform: &Mat4,
     ) -> Result<(), ShaderError> {
         shader.start_using();
 
@@ -69,5 +71,20 @@ impl Mesh {
         self.vao.unbind();
 
         Ok(())
+    }
+
+    pub fn vertices(&self) -> &Vec<Vertex> {
+        &self.vertices
+    }
+
+    pub fn indices(&self) -> &Vec<GLuint> {
+        &self.indices
+    }
+
+    // WARN: Potential slow down for walking over a vec of references.
+    pub fn indexed_vertices(&'a self) -> impl Iterator<Item = &'a Vertex> {
+        self.indices
+            .iter()
+            .map(|index| &self.vertices[*index as usize])
     }
 }

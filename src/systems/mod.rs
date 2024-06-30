@@ -1,5 +1,6 @@
-use crate::{components::ComponentError, entities::EntityError, shader::ShaderError};
+use crate::{components::ComponentError, entities::{Entity, EntityError}, shader::ShaderError};
 
+pub mod controller_system; 
 pub mod physics_system;
 pub mod render_system;
 
@@ -9,6 +10,7 @@ pub enum SystemError {
     ComponentError(ComponentError),
     DrawError(ShaderError),
     LockError,
+    RequestedQuit,
 }
 
 impl From<EntityError> for SystemError {
@@ -27,4 +29,12 @@ impl From<ShaderError> for SystemError {
     fn from(value: ShaderError) -> Self {
         SystemError::DrawError(value)
     }
+}
+
+pub trait System {
+    fn add_entity(&mut self, entity: Entity);
+
+    fn remove_entity(&mut self, entity: Entity);
+
+    fn update(&mut self) -> Result<(), SystemError>;
 }

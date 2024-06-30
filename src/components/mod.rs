@@ -1,17 +1,17 @@
+use camera::CameraComponent;
 use collision::CollisionComponent;
 use gravity::GravityComponent;
 use mesh::MeshComponent;
 use rigid_body::RigidBodyComponent;
-use texture::TextureComponent;
 use transform::TransformComponent;
 
+pub mod camera;
 pub mod collision;
 pub mod component_array;
 pub mod component_manager;
 pub mod gravity;
 pub mod mesh;
 pub mod rigid_body;
-pub mod texture;
 pub mod transform;
 
 pub trait Component {
@@ -34,10 +34,10 @@ pub enum ComponentError {
 pub enum ComponentValue {
     Transform(TransformComponent),
     Mesh(MeshComponent),
-    Texture(TextureComponent),
     Gravity(GravityComponent),
     RigidBody(RigidBodyComponent),
     Collision(CollisionComponent),
+    Camera(CameraComponent),
 }
 
 impl From<ComponentValue> for &'static str {
@@ -45,10 +45,10 @@ impl From<ComponentValue> for &'static str {
         match value {
             ComponentValue::Transform(_) => "Transform",
             ComponentValue::Mesh(_) => "Mesh",
-            ComponentValue::Texture(_) => "Texture",
             ComponentValue::Gravity(_) => "Gravity",
             ComponentValue::RigidBody(_) => "RigidBody",
             ComponentValue::Collision(_) => "Collision",
+            ComponentValue::Camera(_) => "Camera",
         }
     }
 }
@@ -57,20 +57,20 @@ impl From<ComponentValue> for &'static str {
 pub enum ComponentKind {
     Transform,
     Mesh,
-    Texture,
     Gravity,
     RigidBody,
     Collision,
+    Camera,
 }
 
 impl ComponentKind {
     pub const VALUES: [Self; 6] = [
         Self::Transform,
         Self::Mesh,
-        Self::Texture,
         Self::Gravity,
         Self::RigidBody,
         Self::Collision,
+        Self::Camera,
     ];
 }
 
@@ -79,10 +79,10 @@ impl<'a> From<ComponentValue> for ComponentKind {
         match value {
             ComponentValue::Transform(_) => ComponentKind::Transform,
             ComponentValue::Mesh(_) => ComponentKind::Mesh,
-            ComponentValue::Texture(_) => ComponentKind::Texture,
             ComponentValue::Gravity(_) => ComponentKind::Gravity,
             ComponentValue::RigidBody(_) => ComponentKind::RigidBody,
             ComponentValue::Collision(_) => ComponentKind::Collision,
+            ComponentValue::Camera(_) => ComponentKind::Camera,
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::{mesh::Mesh, textures::texture::Texture, vertex::Vertex};
 use gl::types::GLuint;
 
-const CUBE_VERTICES: [(f32, f32, f32); 24] = [
+const VERTICES: [(f32, f32, f32); 24] = [
     // Up face
     (-1.0, 0.0, -1.0),
     (0.0, 0.0, -1.0),
@@ -34,9 +34,9 @@ const CUBE_VERTICES: [(f32, f32, f32); 24] = [
     (-1.0, 0.0, -1.0),
 ];
 
-const CUBE_TEXTURE_COORDS: [(f32, f32); 4] = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+const TEXTURE_COORDS: [(f32, f32); 4] = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
 
-const CUBE_NORMALS: [(f32, f32, f32); 6] = [
+const NORMALS: [(f32, f32, f32); 6] = [
     (0.0, 0.0, 1.0),
     (0.0, 0.0, -1.0),
     (1.0, 0.0, 0.0),
@@ -45,26 +45,26 @@ const CUBE_NORMALS: [(f32, f32, f32); 6] = [
     (0.0, -1.0, 0.0),
 ];
 
-const CUBE_INDICES: [GLuint; 36] = [
-    0, 1, 3, 3, 2, 1, // Up face
-    4, 5, 7, 7, 6, 5, // Down face
-    8, 9, 11, 11, 10, 9, // North face
-    12, 13, 15, 15, 14, 13, // South face
-    16, 17, 19, 19, 18, 17, // East face
-    20, 21, 23, 23, 22, 21, // West face
+const INDICES: [GLuint; 36] = [
+    3, 1, 0, 3, 2, 1, // Up face
+    4, 5, 7, 5, 6, 7, // Down face
+    8, 9, 11, 9, 10, 11, // North face
+    15, 13, 12, 15, 14, 13, // South face
+    16, 17, 19, 17, 18, 19, // East face
+    23, 21, 20, 23, 22, 21, // West face
 ];
 
 pub fn get_cube_mesh(textures: Vec<Texture>) -> Mesh {
-    let vertices: Vec<Vertex> = CUBE_VERTICES
+    let vertices: Vec<Vertex> = VERTICES
         .iter()
         .enumerate()
         .map(|(i, vertex)| {
-            let tex_coord = CUBE_TEXTURE_COORDS[i % CUBE_TEXTURE_COORDS.len()];
-            let normal = CUBE_NORMALS[i / 4];
+            let tex_coord = TEXTURE_COORDS[i % TEXTURE_COORDS.len()];
+            let normal = NORMALS[i / 4];
 
             (*vertex, normal, tex_coord).into()
         })
         .collect();
 
-    Mesh::new(vertices, CUBE_INDICES.to_vec(), textures)
+    Mesh::new(vertices, INDICES.to_vec(), textures)
 }

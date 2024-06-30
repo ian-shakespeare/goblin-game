@@ -31,6 +31,15 @@ impl EntityManager {
         Ok(entity)
     }
 
+    pub fn get_all_entities_with_signature(&self, signature: Signature) -> Vec<Entity> {
+        self.signatures
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| signature.equals(**value))
+            .map(|(i, _)| i as Entity)
+            .collect()
+    }
+
     pub fn destroy_entity(&mut self, entity: Entity) -> Result<(), EntityError> {
         if entity as usize >= MAX_ENTITIES {
             return Err(EntityError::OutOfRange);
