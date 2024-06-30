@@ -1,4 +1,7 @@
-use crate::{components::transform::TransformComponent, mesh::Mesh, utils::point_in_triangle};
+use crate::{
+    components::transform::TransformComponent, constants::COLLISION_RANGE, mesh::Mesh,
+    utils::point_in_triangle,
+};
 use itertools::Itertools;
 use nalgebra_glm::{self as glm, Mat4, Vec3, Vec4};
 
@@ -28,12 +31,7 @@ impl Ray {
         }
     }
 
-    pub fn collides(
-        &self,
-        mesh: &Mesh,
-        mesh_transform: TransformComponent,
-        max_collision_distance: f32,
-    ) -> bool {
+    pub fn collides(&self, mesh: &Mesh, mesh_transform: TransformComponent) -> bool {
         for mut vertex in &mesh.indexed_vertices().chunks(3) {
             let a = vertex
                 .next()
@@ -72,7 +70,7 @@ impl Ray {
             if let Some(Intersection { distance, point }) = self.intersects(&plane_normal) {
                 let triangle = (a_position.xyz(), b_position.xyz(), c_position.xyz());
 
-                if distance <= max_collision_distance
+                if distance <= COLLISION_RANGE
                     && distance >= 0.0
                     && point_in_triangle(point, triangle)
                 {

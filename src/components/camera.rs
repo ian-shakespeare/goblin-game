@@ -19,4 +19,11 @@ impl Component for CameraComponent {
     fn get_value(self) -> ComponentValue {
         ComponentValue::Camera(self)
     }
+
+    fn from_value(value: ComponentValue) -> Self {
+        if let ComponentValue::Camera(camera) = value {
+            return camera;
+        }
+        panic!("Invalid camera component");
+    }
 }

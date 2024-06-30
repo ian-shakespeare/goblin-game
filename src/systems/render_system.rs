@@ -1,8 +1,7 @@
 use super::{System, SystemError};
 use crate::{
     components::{
-        camera::CameraComponent, mesh::MeshComponent, transform::TransformComponent,
-        ComponentError, ComponentValue,
+        camera::CameraComponent, mesh::MeshComponent, transform::TransformComponent, ComponentError,
     },
     constants::{SCREEN_HEIGHT, SCREEN_WIDTH},
     ecs::ECS,
@@ -57,20 +56,12 @@ impl<'a> System for RenderSystem<'a> {
             .lock()
             .map_err(|_| SystemError::LockError)?;
 
-        let camera = match ecs
+        let camera = ecs
             .get_component::<CameraComponent>(self.camera_entity)
-            .expect("Could not get camera component")
-        {
-            ComponentValue::Camera(camera) => camera,
-            _ => panic!("Invalid camera component"),
-        };
-        let camera_transform = match ecs
+            .expect("Could not get camera component");
+        let camera_transform = ecs
             .get_component::<TransformComponent>(self.camera_entity)
-            .expect("Missing camera transform component")
-        {
-            ComponentValue::Transform(camera) => camera,
-            _ => panic!("Invalid camera transform"),
-        };
+            .expect("Missing camera transform component");
         let view_transform = glm::look_at(
             &camera_transform.position,
             &(camera_transform.position + camera.front),
@@ -84,21 +75,13 @@ impl<'a> System for RenderSystem<'a> {
         );
 
         for entity in &self.entities {
-            let transform_component = ecs.get_component::<TransformComponent>(*entity).ok_or(
-                SystemError::ComponentError(ComponentError::MissingComponent("Transform")),
-            )?;
             let TransformComponent {
                 position,
                 rotation,
                 scale,
-            } = match transform_component {
-                ComponentValue::Transform(transform) => transform,
-                _ => {
-                    return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Transform"),
-                    ))
-                }
-            };
+            } = ecs.get_component::<TransformComponent>(*entity).ok_or(
+                SystemError::ComponentError(ComponentError::MissingComponent("Transform")),
+            )?;
 
             let mut model_transform = Mat4::identity();
             model_transform = glm::translate(&model_transform, &position);
@@ -113,19 +96,11 @@ impl<'a> System for RenderSystem<'a> {
                 model_transform = glm::scale(&model_transform, &scale);
             }
 
-            let mesh_component =
+            let MeshComponent { id } =
                 ecs.get_component::<MeshComponent>(*entity)
                     .ok_or(SystemError::ComponentError(
                         ComponentError::MissingComponent("Model"),
                     ))?;
-            let MeshComponent { id } = match mesh_component {
-                ComponentValue::Mesh(model) => model,
-                _ => {
-                    return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Mesh"),
-                    ))
-                }
-            };
             let mesh = mesh_manager.get_mesh(id).expect("Missing mesh");
             mesh.draw_instance(
                 self.shader,

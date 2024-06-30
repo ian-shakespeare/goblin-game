@@ -35,9 +35,11 @@ impl ComponentManager {
         }
     }
 
-    pub fn get_component<C: Component>(&self, entity: Entity) -> Option<ComponentValue> {
+    pub fn get_component<C: Component>(&self, entity: Entity) -> Option<C> {
         let kind = C::get_kind();
-        self.component_arrays.get(&kind)?.get_entity(entity)
+        Some(C::from_value(
+            self.component_arrays.get(&kind)?.get_entity(entity)?,
+        ))
     }
 
     pub fn get_all_components<C: Component>(&self) -> Vec<&ComponentValue> {
@@ -59,10 +61,7 @@ impl ComponentManager {
         Ok(())
     }
 
-    pub fn remove_component<C: Component>(
-        &mut self,
-        entity: Entity,
-    ) -> Result<(), ComponentError> {
+    pub fn remove_component<C: Component>(&mut self, entity: Entity) -> Result<(), ComponentError> {
         let kind = C::get_kind();
         self.component_arrays
             .get_mut(&kind)

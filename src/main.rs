@@ -24,8 +24,6 @@ fn main() {
     let sdl = sdl2::init().unwrap();
     let video_subsystem = sdl.video().unwrap();
 
-    let start_time = std::time::Instant::now();
-
     let gl_attr = video_subsystem.gl_attr();
     gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
     gl_attr.set_context_version(4, 1);
@@ -130,10 +128,7 @@ fn main() {
         scale: None,
     };
     let rigid_body = RigidBodyComponent {
-        acceleration: glm::Vec3::new(0.0, 0.0, 0.0),
-        collision_x_offset: 1.0,
-        collision_y_offset: 1.0,
-        collision_z_offset: 1.0,
+        force: glm::Vec3::new(0.0, 0.0, 0.0),
         velocity: glm::Vec3::new(0.0, 0.0, 0.0),
     };
     let gravity = GravityComponent {
@@ -152,10 +147,7 @@ fn main() {
     };
     let rigid_body = RigidBodyComponent {
         velocity: glm::Vec3::new(0.0, 0.0, 0.0),
-        acceleration: glm::Vec3::new(0.0, 0.0, 0.0),
-        collision_x_offset: 0.5,
-        collision_y_offset: 2.0,
-        collision_z_offset: 0.5,
+        force: glm::Vec3::new(0.0, 0.0, 0.0),
     };
     let gravity = GravityComponent {
         force: glm::Vec3::new(0.0, -0.001, 0.0),
@@ -192,6 +184,7 @@ fn main() {
     // Controller System
     let mut controller_system = ControllerSystem::init(&ecs, event_pump, camera);
 
+    let start_time = std::time::Instant::now();
     let mut tick_count: u32 = 0;
     let mut last_tick_ms: f32 = start_time.elapsed().as_secs_f32() * 1000.0;
 
@@ -202,6 +195,8 @@ fn main() {
 
         // TICK - fixed update
         if current_time_ms >= last_tick_ms + TICK_RATE {
+            // WARN: Controls should probably be processed every frame, then physics applied in
+            // fixed update
             match controller_system.update() {
                 Ok(_) => (),
                 Err(e) => match e {

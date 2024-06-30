@@ -4,7 +4,7 @@ use crate::{
     constants::PLAYER_MOVE_SPEED,
     ecs::ECS,
     entities::Entity,
-    utils::degree_to_radian,
+    utils::{degree_to_radian, flatten_vector},
 };
 use nalgebra_glm::{self as glm, Vec3};
 use sdl2::{event::Event, keyboard::Keycode, mouse::MouseWheelDirection, EventPump};
@@ -43,20 +43,12 @@ impl<'a> System for ControllerSystem<'a> {
 
     fn update(&mut self) -> Result<(), SystemError> {
         let mut ecs = self.ecs.lock().expect("Could not lock ECS");
-        let mut camera = match ecs
+        let mut camera = ecs
             .get_component::<CameraComponent>(self.camera_entity)
-            .expect("Missing camera component")
-        {
-            ComponentValue::Camera(camera) => camera,
-            _ => panic!("Invalid camera component"),
-        };
-        let mut camera_rigid_body = match ecs
+            .expect("Missing camera component");
+        let mut camera_rigid_body = ecs
             .get_component::<RigidBodyComponent>(self.camera_entity)
-            .expect("Missing camera rigid body")
-        {
-            ComponentValue::RigidBody(camera) => camera,
-            _ => panic!("Invalid camera rigid body"),
-        };
+            .expect("Missing camera rigid body");
 
         let sensitivity: f32 = 0.1;
 
@@ -181,11 +173,10 @@ impl<'a> System for ControllerSystem<'a> {
         let cross = front.cross(&camera.up);
         let right = Vec3::new(cross.x, 0.0, cross.z);
 
-        let new_velocity = PLAYER_MOVE_SPEED
-            * (front * self.forward_backword_input + right * self.right_left_input);
+        let movement =
+            flatten_vector(front * self.forward_backword_input + right * self.right_left_input);
 
-        camera_rigid_body.velocity =
-            Vec3::new(new_velocity.x, camera_rigid_body.velocity.y, new_velocity.z);
+        camera_rigid_body.force += PLAYER_MOVE_SPEED * movement;
 
         ecs.set_component(self.camera_entity, ComponentValue::Camera(camera));
         ecs.set_component(

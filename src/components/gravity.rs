@@ -14,4 +14,11 @@ impl<'a> Component for GravityComponent {
     fn get_value(self) -> ComponentValue {
         ComponentValue::Gravity(self)
     }
+
+    fn from_value(value: ComponentValue) -> Self {
+        if let ComponentValue::Gravity(gravity) = value {
+            return gravity;
+        }
+        panic!("Invalid gravity component");
+    }
 }

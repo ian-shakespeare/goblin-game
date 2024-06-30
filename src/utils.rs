@@ -1,5 +1,5 @@
-use std::f32::consts::PI;
 use nalgebra_glm::Vec3;
+use std::f32::consts::PI;
 
 pub fn create_empty_buffer(len: usize) -> Vec<u8> {
     let mut buffer: Vec<u8> = Vec::with_capacity(len + 1);
@@ -31,4 +31,8 @@ pub fn point_in_triangle(point: Vec3, triangle: (Vec3, Vec3, Vec3)) -> bool {
     }
 
     true
+}
+
+pub fn flatten_vector(vector: Vec3) -> Vec3 {
+    Vec3::new(vector.x, 0.0, vector.z)
 }

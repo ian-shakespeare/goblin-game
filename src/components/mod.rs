@@ -18,6 +18,8 @@ pub trait Component {
     fn get_kind() -> ComponentKind;
 
     fn get_value(self) -> ComponentValue;
+
+    fn from_value(value: ComponentValue) -> Self;
 }
 
 #[derive(Debug)]

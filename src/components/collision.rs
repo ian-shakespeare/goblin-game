@@ -13,4 +13,11 @@ impl Component for CollisionComponent {
     fn get_value(self) -> ComponentValue {
         ComponentValue::Collision(self)
     }
+
+    fn from_value(value: ComponentValue) -> Self {
+        if let ComponentValue::Collision(collision) = value {
+            return collision;
+        }
+        panic!("Invalid collision component");
+    }
 }

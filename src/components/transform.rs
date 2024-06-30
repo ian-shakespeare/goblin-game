@@ -16,4 +16,11 @@ impl Component for TransformComponent {
     fn get_value(self) -> ComponentValue {
         ComponentValue::Transform(self)
     }
+
+    fn from_value(value: ComponentValue) -> Self {
+        if let ComponentValue::Transform(transform) = value {
+            return transform;
+        }
+        panic!("Invalid transform component");
+    }
 }

@@ -43,7 +43,7 @@ impl ECS {
             .expect("Could not add component to manager.");
     }
 
-    pub fn get_component<C: Component>(&self, entity: Entity) -> Option<ComponentValue> {
+    pub fn get_component<C: Component>(&self, entity: Entity) -> Option<C> {
         self.component_manager.get_component::<C>(entity)
     }
 

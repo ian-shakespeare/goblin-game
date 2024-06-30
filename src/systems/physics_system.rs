@@ -4,7 +4,7 @@ use crate::{
         collision::CollisionComponent, gravity::GravityComponent, rigid_body::RigidBodyComponent,
         transform::TransformComponent, ComponentError, ComponentValue,
     },
-    constants::MAX_PLAYER_VELOCITY,
+    constants::GROUND_DRAG,
     ecs::ECS,
     entities::Entity,
     mesh_manager::MeshManager,
@@ -54,56 +54,17 @@ impl<'a> System for PhysicsSystem<'a> {
             let rigid_body = ecs.get_component::<RigidBodyComponent>(*entity).ok_or(
                 SystemError::ComponentError(ComponentError::MissingComponent("RigidBody")),
             )?;
-            let RigidBodyComponent {
-                mut acceleration,
-                collision_x_offset,
-                collision_y_offset,
-                collision_z_offset,
-                velocity,
-            } = match rigid_body {
-                ComponentValue::RigidBody(rigid_body) => rigid_body,
-                _ => {
-                    return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Gravity"),
-                    ))
-                }
-            };
 
             let transform = ecs.get_component::<TransformComponent>(*entity).ok_or(
                 SystemError::ComponentError(ComponentError::MissingComponent("Transform")),
             )?;
-            let TransformComponent {
-                position,
-                rotation,
-                scale,
-            } = match transform {
-                ComponentValue::Transform(transform) => transform,
-                _ => {
-                    return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Transform"),
-                    ))
-                }
-            };
 
             let gravity = ecs.get_component::<GravityComponent>(*entity).ok_or(
                 SystemError::ComponentError(ComponentError::MissingComponent("Gravity")),
             )?;
-            let GravityComponent { force } = match gravity {
-                ComponentValue::Gravity(gravity) => gravity,
-                _ => {
-                    return Err(SystemError::ComponentError(
-                        ComponentError::MissingComponent("Gravity"),
-                    ))
-                }
-            };
 
-            let mut new_position = position + velocity;
-            let mut new_velocity = velocity + acceleration + force;
-            new_velocity = Vec3::new(
-                new_velocity.x.min(MAX_PLAYER_VELOCITY),
-                new_velocity.y.min(MAX_PLAYER_VELOCITY),
-                new_velocity.z.min(MAX_PLAYER_VELOCITY),
-            );
+            let mut new_position = transform.position + rigid_body.velocity;
+            let mut new_velocity = rigid_body.velocity + rigid_body.force + gravity.force;
 
             let up_ray = Ray::new(new_position, Vec3::new(0.0, 1.0, 0.0));
             let down_ray = Ray::new(new_position, Vec3::new(0.0, -1.0, 0.0));
@@ -114,60 +75,40 @@ impl<'a> System for PhysicsSystem<'a> {
 
             let collidable_entities = ecs.get_all_entities_with_component::<CollisionComponent>();
             for collidable_entity in collidable_entities {
-                let collision = ecs
+                let CollisionComponent { mesh_id } = ecs
                     .get_component::<CollisionComponent>(collidable_entity)
                     .expect("Could not find collision component");
-                let collision_transform = match ecs
+
+                let collision_transform = ecs
                     .get_component::<TransformComponent>(collidable_entity)
-                    .expect("Could not find collidable's transform component")
+                    .expect("Could not find transform component");
+
+                let collision_mesh = mesh_manager
+                    .get_mesh(mesh_id)
+                    .expect("Could not find collision mesh");
+
+                // X collisions
+                if north_ray.collides(collision_mesh, collision_transform)
+                    || south_ray.collides(collision_mesh, collision_transform)
                 {
-                    ComponentValue::Transform(transform) => transform,
-                    _ => panic!("Could not match collidable's transform"),
-                };
+                    new_position = Vec3::new(transform.position.x, new_position.y, new_position.z);
+                    new_velocity = Vec3::new(0.0, new_velocity.y, new_velocity.z);
+                }
 
-                if let ComponentValue::Collision(CollisionComponent { mesh_id }) = collision {
-                    let collision_mesh = mesh_manager
-                        .get_mesh(mesh_id)
-                        .expect("Could not find collision mesh");
+                // Y collisions
+                if up_ray.collides(collision_mesh, collision_transform)
+                    || down_ray.collides(collision_mesh, collision_transform)
+                {
+                    new_position = Vec3::new(new_position.x, transform.position.y, new_position.z);
+                    new_velocity = GROUND_DRAG * Vec3::new(new_velocity.x, 0.0, new_velocity.z);
+                }
 
-                    // X collisions
-                    if north_ray.collides(collision_mesh, collision_transform, collision_x_offset)
-                        || south_ray.collides(
-                            collision_mesh,
-                            collision_transform,
-                            collision_x_offset,
-                        )
-                    {
-                        new_position = Vec3::new(position.x, new_position.y, new_position.z);
-                        new_velocity = Vec3::new(0.0, new_velocity.y, new_velocity.z);
-                        acceleration = Vec3::new(0.0, acceleration.y, acceleration.z);
-                    }
-
-                    // Y collisions
-                    if up_ray.collides(collision_mesh, collision_transform, collision_y_offset)
-                        || down_ray.collides(
-                            collision_mesh,
-                            collision_transform,
-                            collision_y_offset,
-                        )
-                    {
-                        new_position = Vec3::new(new_position.x, position.y, new_position.z);
-                        new_velocity = Vec3::new(new_velocity.x, 0.0, new_velocity.z);
-                        acceleration = Vec3::new(acceleration.x, 0.0, acceleration.z);
-                    }
-
-                    // Z collisions
-                    if east_ray.collides(collision_mesh, collision_transform, collision_z_offset)
-                        || west_ray.collides(
-                            collision_mesh,
-                            collision_transform,
-                            collision_z_offset,
-                        )
-                    {
-                        new_position = Vec3::new(new_position.x, new_position.y, position.z);
-                        new_velocity = Vec3::new(new_velocity.x, new_velocity.y, 0.0);
-                        acceleration = Vec3::new(acceleration.x, acceleration.y, 0.0);
-                    }
+                // Z collisions
+                if east_ray.collides(collision_mesh, collision_transform)
+                    || west_ray.collides(collision_mesh, collision_transform)
+                {
+                    new_position = Vec3::new(new_position.x, new_position.y, transform.position.z);
+                    new_velocity = Vec3::new(new_velocity.x, new_velocity.y, 0.0);
                 }
             }
 
@@ -175,18 +116,15 @@ impl<'a> System for PhysicsSystem<'a> {
                 *entity,
                 ComponentValue::Transform(TransformComponent {
                     position: new_position,
-                    rotation,
-                    scale,
+                    rotation: transform.rotation,
+                    scale: transform.scale,
                 }),
             );
 
             ecs.set_component(
                 *entity,
                 ComponentValue::RigidBody(RigidBodyComponent {
-                    acceleration,
-                    collision_x_offset,
-                    collision_y_offset,
-                    collision_z_offset,
+                    force: Vec3::zeros(),
                     velocity: new_velocity,
                 }),
             );
