@@ -1,12 +1,14 @@
 use goblin_game::{
+    collider::{Collider, Hitbox},
     components::{
-        camera::CameraComponent, collision::CollisionComponent, gravity::GravityComponent,
-        mesh::MeshComponent, rigid_body::RigidBodyComponent, transform::TransformComponent,
+        camera_followable::CameraFollowable, collidable::Collidable, controllable::Controllable,
+        gravity::GravityComponent, mesh::MeshComponent, rigid_body::RigidBodyComponent,
+        transform::Transform,
     },
     constants::{SCREEN_HEIGHT, SCREEN_WIDTH, TICK_RATE},
-    ecs::ECS,
+    ecs::Ecs,
     mesh_manager::MeshManager,
-    models::{cube::get_cube_mesh, plane::get_plane_mesh},
+    models::{cube::Cube, plane::Plane},
     resources::Resources,
     shader::Shader,
     systems::{
@@ -55,78 +57,78 @@ fn main() {
     let mut other_tmp = mesh_manager.lock().expect("Could not lock mesh manager.");
     let texture_manager = TextureManager::new(&res);
 
-    let ecs = Mutex::new(ECS::new());
+    let ecs = Mutex::new(Ecs::new());
     let mut tmp = ecs.lock().expect("Could not lock ECS.");
-    tmp.register_component::<TransformComponent>();
+    tmp.register_component::<Transform>();
     tmp.register_component::<MeshComponent>();
     tmp.register_component::<RigidBodyComponent>();
     tmp.register_component::<GravityComponent>();
-    tmp.register_component::<CollisionComponent>();
-    tmp.register_component::<CameraComponent>();
+    tmp.register_component::<Collidable>();
+    tmp.register_component::<Controllable>();
+    tmp.register_component::<CameraFollowable>();
 
     let grass_texture = texture_manager.get_texture(TextureId::Grass);
     let stone_brick_texture = texture_manager.get_texture(TextureId::StoneBricks);
 
-    let plane_id = other_tmp.add_mesh(get_plane_mesh(vec![stone_brick_texture]));
-    let cube_id = other_tmp.add_mesh(get_cube_mesh(vec![grass_texture]));
+    let plane_id = other_tmp.add_mesh(Plane::get_mesh(vec![stone_brick_texture]));
+    let cube_id = other_tmp.add_mesh(Cube::get_mesh(vec![grass_texture]));
 
     drop(other_tmp);
 
     // Floor
     let model = MeshComponent { id: plane_id };
-    let transform = TransformComponent {
-        position: glm::Vec3::new(50.0, 0.0, 50.0),
-        rotation: None,
-        scale: Some(glm::Vec3::new(101.0, 1.0, 101.0)),
-    };
-    let collision = CollisionComponent { mesh_id: plane_id };
-    let floor = tmp.create_entity();
-    tmp.add_component(floor, model);
-    tmp.add_component(floor, transform);
-    tmp.add_component(floor, collision);
+    let transform = Transform::new(
+        glm::Vec3::new(0.0, 0.0, 0.0),
+        None,
+        Some(glm::Vec3::new(101.0, 1.0, 101.0)),
+    );
+    let collidable = Collidable::new(Hitbox::Plane(transform));
+    let floor = tmp.create_entity().expect("Could not create entity");
+    tmp.add_component(floor, model)
+        .expect("Could not add component");
+    tmp.add_component(floor, collidable)
+        .expect("Could not add component");
+    tmp.add_component(floor, transform)
+        .expect("Could not add component");
 
     // Wall 1
     let model = MeshComponent { id: plane_id };
-    let transform = TransformComponent {
-        position: glm::Vec3::new(50.0, 10.0, 50.0),
-        rotation: Some(glm::Vec4::new(90.0, 0.0, 0.0, 1.0)),
-        scale: Some(glm::Vec3::new(10.0, 1.0, 101.0)),
-    };
-    let collision = CollisionComponent { mesh_id: plane_id };
-    let wall1 = tmp.create_entity();
-    tmp.add_component(wall1, model);
-    tmp.add_component(wall1, transform);
-    tmp.add_component(wall1, collision);
+    let transform = Transform::new(
+        glm::Vec3::new(50.0, 5.0, 0.0),
+        Some(glm::Vec4::new(90.0, 0.0, 0.0, 1.0)),
+        Some(glm::Vec3::new(10.0, 1.0, 101.0)),
+    );
+    let wall1 = tmp.create_entity().expect("Could not create entity");
+    tmp.add_component(wall1, model)
+        .expect("Could not add component");
+    tmp.add_component(wall1, transform)
+        .expect("Could not add component");
 
     // Block 1
     let model = MeshComponent { id: cube_id };
-    let transform = TransformComponent {
-        position: glm::Vec3::new(0.0, 1.0, 0.0),
-        rotation: None,
-        scale: None,
-    };
-    let block1 = tmp.create_entity();
-    tmp.add_component(block1, model);
-    tmp.add_component(block1, transform);
+    let transform = Transform::new(glm::Vec3::new(0.0, 1.0, 0.0), None, None);
+    let block1 = tmp.create_entity().expect("Could not create entity");
+    tmp.add_component(block1, model)
+        .expect("Could not add component");
+    tmp.add_component(block1, transform)
+        .expect("Could not add component");
 
     // Block 2
     let model = MeshComponent { id: cube_id };
-    let transform = TransformComponent {
-        position: glm::Vec3::new(1.0, 2.0, 1.0),
-        rotation: None,
-        scale: None,
-    };
-    let block2 = tmp.create_entity();
-    tmp.add_component(block2, model);
-    tmp.add_component(block2, transform);
+    let transform = Transform::new(glm::Vec3::new(1.0, 2.0, 1.0), None, None);
+    let block2 = tmp.create_entity().expect("Could not create entity");
+    tmp.add_component(block2, model)
+        .expect("Could not add component");
+    tmp.add_component(block2, transform)
+        .expect("Could not add component");
 
     // Falling Block
     let model = MeshComponent { id: cube_id };
-    let transform = TransformComponent {
-        position: glm::Vec3::new(0.0, 5.0, 0.0),
-        rotation: Some(glm::Vec4::new(45.0, 0.0, 1.0, 0.0)),
-        scale: None,
-    };
+    let transform = Transform::new(
+        glm::Vec3::new(0.0, 5.0, 0.0),
+        Some(glm::Vec4::new(45.0, 0.0, 1.0, 0.0)),
+        None,
+    );
     let rigid_body = RigidBodyComponent {
         force: glm::Vec3::new(0.0, 0.0, 0.0),
         velocity: glm::Vec3::new(0.0, 0.0, 0.0),
@@ -134,55 +136,49 @@ fn main() {
     let gravity = GravityComponent {
         force: glm::Vec3::new(0.0, -0.001, 0.0),
     };
-    let falling_block = tmp.create_entity();
-    tmp.add_component(falling_block, model);
-    tmp.add_component(falling_block, transform);
-    tmp.add_component(falling_block, rigid_body);
-    tmp.add_component(falling_block, gravity);
+    let falling_block = tmp.create_entity().expect("Could not create entity");
+    tmp.add_component(falling_block, model)
+        .expect("Could not add component");
+    tmp.add_component(falling_block, transform)
+        .expect("Could not add component");
+    tmp.add_component(falling_block, rigid_body)
+        .expect("Could not add component");
+    tmp.add_component(falling_block, gravity)
+        .expect("Could not add component");
 
-    let transform = TransformComponent {
-        position: glm::Vec3::new(0.0, 4.0, 0.0),
-        rotation: None,
-        scale: None,
-    };
+    let transform = Transform::new(glm::Vec3::new(-1.0, 3.0, 0.0), None, None);
+    let controlled = Controllable::new();
     let rigid_body = RigidBodyComponent {
-        velocity: glm::Vec3::new(0.0, 0.0, 0.0),
         force: glm::Vec3::new(0.0, 0.0, 0.0),
+        velocity: glm::Vec3::new(0.0, 0.0, 0.0),
     };
     let gravity = GravityComponent {
         force: glm::Vec3::new(0.0, -0.001, 0.0),
     };
-    let camera_component = CameraComponent {
-        front: glm::Vec3::new(1.0, 0.0, 0.0),
-        up: glm::Vec3::new(0.0, 1.0, 0.0),
-        fov: 45.0,
-        yaw: 0.0,
-        pitch: 0.0,
-    };
-    let camera = tmp.create_entity();
-    tmp.add_component(camera, transform);
-    tmp.add_component(camera, rigid_body);
-    tmp.add_component(camera, gravity);
-    tmp.add_component(camera, camera_component);
+    let camera_followable = CameraFollowable::new(true, glm::Vec3::zeros());
+    let player = tmp.create_entity().expect("Could not create entity");
+    tmp.add_component(player, transform)
+        .expect("Could not add component");
+    tmp.add_component(player, controlled)
+        .expect("Could not add component");
+    tmp.add_component(player, rigid_body)
+        .expect("Could not add component");
+    tmp.add_component(player, gravity)
+        .expect("Could not add component");
+    tmp.add_component(player, camera_followable)
+        .expect("Could not add component");
+
+    let mut collider = Collider::new();
 
     // Render System
-    let mut render_system = RenderSystem::init(&ecs, &mesh_manager, &shader, camera)
-        .expect("Could not initialize render system.");
-    render_system.add_entity(floor);
-    render_system.add_entity(block1);
-    render_system.add_entity(block2);
-    render_system.add_entity(falling_block);
-    render_system.add_entity(wall1);
+    let mut render_system = RenderSystem::init(&ecs, &mesh_manager, &shader);
 
     // Physics System
-    let mut physics_system =
-        PhysicsSystem::init(&ecs, &mesh_manager).expect("Could not initialize physics system.");
-    physics_system.add_entity(falling_block);
-    physics_system.add_entity(camera);
+    let mut physics_system = PhysicsSystem::init(&ecs, &mut collider);
 
     let event_pump = sdl.event_pump().unwrap();
     // Controller System
-    let mut controller_system = ControllerSystem::init(&ecs, event_pump, camera);
+    let mut controller_system = ControllerSystem::init(&ecs, event_pump);
 
     let start_time = std::time::Instant::now();
     let mut tick_count: u32 = 0;

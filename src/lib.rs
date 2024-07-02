@@ -1,7 +1,8 @@
+pub mod camera;
+pub mod collider;
 pub mod components;
 pub mod constants;
 pub mod ecs;
-pub mod entities;
 pub mod level;
 pub mod mesh;
 pub mod mesh_manager;

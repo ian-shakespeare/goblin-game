@@ -1,56 +1,32 @@
 use super::{System, SystemError};
 use crate::{
-    components::{camera::CameraComponent, rigid_body::RigidBodyComponent, ComponentValue},
+    components::{controllable::Controllable, rigid_body::RigidBody},
     constants::PLAYER_MOVE_SPEED,
-    ecs::ECS,
-    entities::Entity,
-    utils::{degree_to_radian, flatten_vector},
+    ecs::Ecs,
+    utils::flatten_vector,
 };
-use nalgebra_glm::{self as glm, Vec3};
-use sdl2::{event::Event, keyboard::Keycode, mouse::MouseWheelDirection, EventPump};
-use std::{collections::HashSet, sync::Mutex};
+use sdl2::{event::Event, keyboard::Keycode, EventPump};
+use std::sync::Mutex;
 
 pub struct ControllerSystem<'a> {
-    ecs: &'a Mutex<ECS>,
-    entities: HashSet<Entity>,
+    ecs: &'a Mutex<Ecs>,
     event_pump: EventPump,
-    camera_entity: Entity,
-    forward_backword_input: f32,
-    right_left_input: f32,
 }
 
 impl<'a> ControllerSystem<'a> {
-    pub fn init(ecs: &'a Mutex<ECS>, event_pump: EventPump, camera_entity: Entity) -> Self {
-        Self {
-            entities: HashSet::new(),
-            forward_backword_input: 0.0,
-            right_left_input: 0.0,
-            ecs,
-            event_pump,
-            camera_entity,
-        }
+    pub fn init(ecs: &'a Mutex<Ecs>, event_pump: EventPump) -> Self {
+        Self { ecs, event_pump }
     }
 }
 
 impl<'a> System for ControllerSystem<'a> {
-    fn add_entity(&mut self, entity: Entity) {
-        self.entities.insert(entity);
-    }
-
-    fn remove_entity(&mut self, entity: Entity) {
-        self.entities.remove(&entity);
-    }
-
     fn update(&mut self) -> Result<(), SystemError> {
-        let mut ecs = self.ecs.lock().expect("Could not lock ECS");
-        let mut camera = ecs
-            .get_component::<CameraComponent>(self.camera_entity)
-            .expect("Missing camera component");
-        let mut camera_rigid_body = ecs
-            .get_component::<RigidBodyComponent>(self.camera_entity)
-            .expect("Missing camera rigid body");
+        let ecs = self.ecs.lock().expect("Could not lock ECS");
 
-        let sensitivity: f32 = 0.1;
+        let mut forward_motion: f32 = 0.0;
+        let mut horizontal_motion: f32 = 0.0;
+        let mut rotate_x = 0.0;
+        let mut rotate_y = 0.0;
 
         // Poll events
         for event in self.event_pump.poll_iter() {
@@ -66,25 +42,10 @@ impl<'a> System for ControllerSystem<'a> {
                     x: _,
                     y: _,
                 } => {
-                    let mouse_x = xrel as f32;
-                    let mouse_y = -yrel as f32;
-                    camera.yaw += mouse_x * sensitivity;
-                    camera.pitch += (mouse_y * sensitivity).clamp(-89.0, 89.0);
-
-                    let mut front = Vec3::identity();
-                    front.x =
-                        degree_to_radian(camera.yaw).cos() * degree_to_radian(camera.pitch).cos();
-                    front.y = degree_to_radian(camera.pitch).sin();
-                    front.z =
-                        degree_to_radian(camera.yaw).sin() * degree_to_radian(camera.pitch).cos();
-                    camera.front = glm::normalize(&front);
-                    let right = glm::normalize(&glm::cross::<f32, glm::U3>(
-                        &front,
-                        &Vec3::new(0.0, 1.0, 0.0),
-                    ));
-                    camera.up = glm::normalize(&glm::cross::<f32, glm::U3>(&right, &front));
+                    rotate_x = xrel as f32;
+                    rotate_y = -yrel as f32;
                 }
-                Event::MouseWheel {
+                /*Event::MouseWheel {
                     direction,
                     y,
                     timestamp: _,
@@ -96,12 +57,11 @@ impl<'a> System for ControllerSystem<'a> {
                 } => {
                     match direction {
                         MouseWheelDirection::Normal => {
-                            let degrees = -y as f32;
-                            camera.fov = (camera.fov + degrees).clamp(1.0, 90.0);
+                            camera.zoom(-y as f32);
                         }
                         _ => (),
                     };
-                }
+                }*/
                 Event::KeyDown {
                     keycode,
                     repeat,
@@ -117,16 +77,16 @@ impl<'a> System for ControllerSystem<'a> {
                     if let Some(keycode) = keycode {
                         match keycode {
                             Keycode::W => {
-                                self.forward_backword_input += 1.0;
+                                forward_motion += 1.0;
                             }
                             Keycode::A => {
-                                self.right_left_input -= 1.0;
+                                horizontal_motion -= 1.0;
                             }
                             Keycode::S => {
-                                self.forward_backword_input -= 1.0;
+                                forward_motion -= 1.0;
                             }
                             Keycode::D => {
-                                self.right_left_input += 1.0;
+                                horizontal_motion += 1.0;
                             }
                             Keycode::Escape => {
                                 return Err(SystemError::RequestedQuit);
@@ -150,16 +110,16 @@ impl<'a> System for ControllerSystem<'a> {
                     if let Some(keycode) = keycode {
                         match keycode {
                             Keycode::W => {
-                                self.forward_backword_input -= 1.0;
+                                forward_motion -= 1.0;
                             }
                             Keycode::A => {
-                                self.right_left_input += 1.0;
+                                horizontal_motion += 1.0;
                             }
                             Keycode::S => {
-                                self.forward_backword_input += 1.0;
+                                forward_motion += 1.0;
                             }
                             Keycode::D => {
-                                self.right_left_input -= 1.0;
+                                horizontal_motion -= 1.0;
                             }
                             _ => (),
                         };
@@ -169,20 +129,33 @@ impl<'a> System for ControllerSystem<'a> {
             }
         }
 
-        let front = Vec3::new(camera.front.x, 0.0, camera.front.z);
-        let cross = front.cross(&camera.up);
-        let right = Vec3::new(cross.x, 0.0, cross.z);
+        let mut controllables = ecs
+            .get_component_vec::<Controllable>()
+            .expect("Could not get controlled vector");
+        let mut rigid_body = ecs
+            .get_component_vec::<RigidBody>()
+            .expect("Could not get rigid body vector");
 
-        let movement =
-            flatten_vector(front * self.forward_backword_input + right * self.right_left_input);
+        let union = controllables
+            .iter_mut()
+            .zip(rigid_body.iter_mut())
+            .filter_map(|(controlled, rigid_body)| {
+                Some((controlled.as_mut()?, rigid_body.as_mut()?))
+            });
 
-        camera_rigid_body.force += PLAYER_MOVE_SPEED * movement;
+        for (controlled, rigid_body) in union {
+            controlled.rotate(rotate_x, rotate_y);
+            controlled.apply_motion(forward_motion, horizontal_motion);
 
-        ecs.set_component(self.camera_entity, ComponentValue::Camera(camera));
-        ecs.set_component(
-            self.camera_entity,
-            ComponentValue::RigidBody(camera_rigid_body),
-        );
+            let front = flatten_vector(controlled.facing());
+            let right = flatten_vector(controlled.perpendicular());
+
+            let movement = flatten_vector(
+                front * controlled.forward_motion() + right * controlled.horizontal_motion(),
+            );
+
+            rigid_body.apply_force(PLAYER_MOVE_SPEED * movement);
+        }
 
         Ok(())
     }
