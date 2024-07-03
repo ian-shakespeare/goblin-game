@@ -1,9 +1,8 @@
 use goblin_game::{
-    collider::{Collider, Hitbox},
+    collider::Collider,
     components::{
-        camera_followable::CameraFollowable, collidable::Collidable, controllable::Controllable,
-        gravity::GravityComponent, mesh::MeshComponent, rigid_body::RigidBodyComponent,
-        transform::Transform,
+        camera_followable::CameraFollowable, controllable::Controllable, gravity::GravityComponent,
+        mesh::MeshComponent, rigid_body::RigidBody, transform::Transform,
     },
     constants::{SCREEN_HEIGHT, SCREEN_WIDTH, TICK_RATE},
     ecs::Ecs,
@@ -61,9 +60,8 @@ fn main() {
     let mut tmp = ecs.lock().expect("Could not lock ECS.");
     tmp.register_component::<Transform>();
     tmp.register_component::<MeshComponent>();
-    tmp.register_component::<RigidBodyComponent>();
+    tmp.register_component::<RigidBody>();
     tmp.register_component::<GravityComponent>();
-    tmp.register_component::<Collidable>();
     tmp.register_component::<Controllable>();
     tmp.register_component::<CameraFollowable>();
 
@@ -82,11 +80,8 @@ fn main() {
         None,
         Some(glm::Vec3::new(101.0, 1.0, 101.0)),
     );
-    let collidable = Collidable::new(Hitbox::Plane(transform));
     let floor = tmp.create_entity().expect("Could not create entity");
     tmp.add_component(floor, model)
-        .expect("Could not add component");
-    tmp.add_component(floor, collidable)
         .expect("Could not add component");
     tmp.add_component(floor, transform)
         .expect("Could not add component");
@@ -122,6 +117,7 @@ fn main() {
     tmp.add_component(block2, transform)
         .expect("Could not add component");
 
+    // TODO: Figure out why this block does not collide (maybe rotation).
     // Falling Block
     let model = MeshComponent { id: cube_id };
     let transform = Transform::new(
@@ -129,10 +125,7 @@ fn main() {
         Some(glm::Vec4::new(45.0, 0.0, 1.0, 0.0)),
         None,
     );
-    let rigid_body = RigidBodyComponent {
-        force: glm::Vec3::new(0.0, 0.0, 0.0),
-        velocity: glm::Vec3::new(0.0, 0.0, 0.0),
-    };
+    let rigid_body = RigidBody::default();
     let gravity = GravityComponent {
         force: glm::Vec3::new(0.0, -0.001, 0.0),
     };
@@ -146,16 +139,13 @@ fn main() {
     tmp.add_component(falling_block, gravity)
         .expect("Could not add component");
 
-    let transform = Transform::new(glm::Vec3::new(-1.0, 3.0, 0.0), None, None);
+    let transform = Transform::new(glm::Vec3::new(-1.0, 4.0, 0.0), None, None);
     let controlled = Controllable::new();
-    let rigid_body = RigidBodyComponent {
-        force: glm::Vec3::new(0.0, 0.0, 0.0),
-        velocity: glm::Vec3::new(0.0, 0.0, 0.0),
-    };
+    let rigid_body = RigidBody::new(1.85, 0.5);
     let gravity = GravityComponent {
         force: glm::Vec3::new(0.0, -0.001, 0.0),
     };
-    let camera_followable = CameraFollowable::new(true, glm::Vec3::zeros());
+    let camera_followable = CameraFollowable::new(true, glm::Vec3::new(0.0, 1.0, 0.0));
     let player = tmp.create_entity().expect("Could not create entity");
     tmp.add_component(player, transform)
         .expect("Could not add component");
@@ -169,6 +159,12 @@ fn main() {
         .expect("Could not add component");
 
     let mut collider = Collider::new();
+
+    collider.add_collidable(Transform::new(
+        glm::Vec3::zeros(),
+        None,
+        Some(glm::Vec3::new(101.0, 0.01, 101.0)),
+    ));
 
     // Render System
     let mut render_system = RenderSystem::init(&ecs, &mesh_manager, &shader);

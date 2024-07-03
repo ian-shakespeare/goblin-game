@@ -1,26 +1,34 @@
-use crate::collider::Hitbox;
 use nalgebra_glm::Vec3;
 
 pub struct RigidBody {
-    hitbox: Hitbox,
     force: Vec3,
     velocity: Vec3,
+    height: f32,
+    radius: f32,
 }
 
 impl RigidBody {
-    pub fn new(hitbox: Hitbox) -> Self {
+    pub fn new(height: f32, radius: f32) -> Self {
         Self {
             force: Vec3::zeros(),
             velocity: Vec3::zeros(),
-            hitbox,
+            height,
+            radius,
+        }
+    }
+
+    pub fn default() -> Self {
+        Self {
+            force: Vec3::zeros(),
+            velocity: Vec3::zeros(),
+            height: 1.0,
+            radius: 1.0,
         }
     }
 
     pub fn apply_force(&mut self, force: Vec3) {
         self.force += force;
     }
-
-    // pub fn apply_drag(&mut self, force: Vec3) {}
 
     pub fn set_velocity(&mut self, velocity: Vec3) {
         self.velocity = velocity;
@@ -36,5 +44,13 @@ impl RigidBody {
 
     pub fn net_force(&self) -> Vec3 {
         self.force
+    }
+
+    pub fn height(&self) -> f32 {
+        self.height
+    }
+
+    pub fn radius(&self) -> f32 {
+        self.radius
     }
 }

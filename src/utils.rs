@@ -54,6 +54,18 @@ pub fn create_transform_matrix(transform: &Transform) -> Mat4 {
     transform
 }
 
+pub fn heighten_vector(vector: Vec3, height: f32) -> Vec3 {
+    Vec3::new(vector.x, vector.y + height, vector.z)
+}
+
+pub fn lengthen_vector(vector: Vec3, length: f32) -> Vec3 {
+    Vec3::new(vector.x + length, vector.y, vector.z)
+}
+
+pub fn widen_vector(vector: Vec3, width: f32) -> Vec3 {
+    Vec3::new(vector.x, vector.y, vector.z + width)
+}
+
 pub fn flatten_vector(vector: Vec3) -> Vec3 {
     Vec3::new(vector.x, 0.0, vector.z)
 }
