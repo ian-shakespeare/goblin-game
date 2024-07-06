@@ -1,14 +1,21 @@
 use crate::{
-    components::{Force, Player, PlayerCam},
-    constants::{MOUSE_SENSITIVITY_X, MOUSE_SENSITIVITY_Y, PLAYER_MOVESPEED},
+    components::{Player, PlayerCam},
+    constants::{
+        GRAVITY, MOUSE_SENSITIVITY_X, MOUSE_SENSITIVITY_Y, PLAYER_JUMPFORCE, PLAYER_MOVEFORCE,
+    },
 };
 use bevy::{
     app::{App, AppExit, Plugin, Startup, Update},
     input::{mouse::MouseMotion, ButtonInput},
     math::Vec3,
     prelude::{EventReader, EventWriter, IntoSystemConfigs, KeyCode, Query, Res, With, Without},
+    time::Time,
     transform::components::Transform,
     window::{CursorGrabMode, Window},
+};
+use bevy_rapier3d::{
+    control::{KinematicCharacterController, KinematicCharacterControllerOutput},
+    dynamics::{ExternalForce, RigidBody},
 };
 
 pub struct ControllerPlugin;
@@ -42,39 +49,53 @@ fn rotate_player(
 }
 
 fn move_player(
+    mut player: Query<(&mut ExternalForce, &Transform), With<Player>>,
     key: Res<ButtonInput<KeyCode>>,
-    mut player: Query<(&mut Force, &Transform), With<Player>>,
+    time: Res<Time>,
 ) {
-    let (mut player_force, player_transform) = player.single_mut();
-
-    let forward_force = player_transform
+    let (mut force, transform) = player.single_mut();
+    let forward = transform
         .rotation
-        .mul_vec3(PLAYER_MOVESPEED * Vec3::new(0.0, 0.0, -1.0));
+        .mul_vec3(PLAYER_MOVEFORCE * Vec3::new(0.0, 0.0, -1.0))
+        .with_y(0.0);
 
-    let backward_force = player_transform
+    let backward = transform
         .rotation
-        .mul_vec3(PLAYER_MOVESPEED * Vec3::new(0.0, 0.0, 1.0));
+        .mul_vec3(PLAYER_MOVEFORCE * Vec3::new(0.0, 0.0, 1.0))
+        .with_y(0.0);
 
-    let right_force = player_transform
+    let right = transform
         .rotation
-        .mul_vec3(PLAYER_MOVESPEED * Vec3::new(1.0, 0.0, 0.0));
+        .mul_vec3(PLAYER_MOVEFORCE * Vec3::new(1.0, 0.0, 0.0))
+        .with_y(0.0);
 
-    let left_force = player_transform
+    let left = transform
         .rotation
-        .mul_vec3(PLAYER_MOVESPEED * Vec3::new(-1.0, 0.0, 0.0));
+        .mul_vec3(PLAYER_MOVEFORCE * Vec3::new(-1.0, 0.0, 0.0))
+        .with_y(0.0);
+
+    let mut to_move = Vec3::ZERO;
 
     if key.pressed(KeyCode::KeyW) {
-        player_force.apply_force(forward_force);
+        to_move += forward;
     }
     if key.pressed(KeyCode::KeyS) {
-        player_force.apply_force(backward_force);
+        to_move += backward;
     }
     if key.pressed(KeyCode::KeyA) {
-        player_force.apply_force(left_force);
+        to_move += left;
     }
     if key.pressed(KeyCode::KeyD) {
-        player_force.apply_force(right_force);
+        to_move += right;
     }
+
+    to_move = to_move.with_y(0.0);
+
+    if key.just_pressed(KeyCode::Space) {
+        to_move += PLAYER_JUMPFORCE * Vec3::new(0.0, 1.0, 0.0);
+    }
+
+    force.force = to_move.with_y(0.0) * time.delta_seconds();
 }
 
 fn sync_camera(
