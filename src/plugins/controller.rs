@@ -1,6 +1,6 @@
 use crate::{
-    components::{LookInput, MovementInput},
-    constants::{MOUSE_SENSITIVITY_X, MOUSE_SENSITIVITY_Y},
+    components::{LookInput, MovementInput, PlayerActions},
+    constants::{MOUSE_SENSITIVITY_X, MOUSE_SENSITIVITY_Y, SPRINT_MULTIPLIER},
 };
 use bevy::{
     input::{mouse::MouseMotion, InputSystem},
@@ -20,14 +20,18 @@ impl ControllerPlugin {
         // Init input resources
         commands.init_resource::<MovementInput>();
         commands.init_resource::<LookInput>();
+        commands.init_resource::<PlayerActions>();
     }
 
     fn handle_input(
         keyboard: Res<ButtonInput<KeyCode>>,
+        mouse: Res<ButtonInput<MouseButton>>,
         mut mouse_events: EventReader<MouseMotion>,
         mut movement: ResMut<MovementInput>,
         mut look: ResMut<LookInput>,
+        mut actions: ResMut<PlayerActions>,
     ) {
+        // Movement
         if keyboard.pressed(KeyCode::KeyW) {
             movement.z -= 1.0;
         }
@@ -43,16 +47,23 @@ impl ControllerPlugin {
 
         **movement = movement.normalize_or_zero();
         if keyboard.pressed(KeyCode::ShiftLeft) {
-            **movement *= 2.0;
+            **movement *= SPRINT_MULTIPLIER;
         }
+
         if keyboard.pressed(KeyCode::Space) {
             movement.y = 1.0
         }
 
+        // Mouse
         for event in mouse_events.read() {
             look.x -= event.delta.x * MOUSE_SENSITIVITY_X;
             look.y -= event.delta.y * MOUSE_SENSITIVITY_Y;
             look.y = look.y.clamp(-89.9, 89.9);
+        }
+
+        // Shooting
+        if mouse.just_pressed(MouseButton::Left) {
+            actions.shoot = true;
         }
     }
 

@@ -8,20 +8,33 @@ impl Level {
         mut commands: Commands,
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<StandardMaterial>>,
+        asset_server: Res<AssetServer>,
     ) {
+        let stone_bricks: Handle<Image> = asset_server.load("textures/stone_bricks.png");
+
         let cube_width: f32 = 50.0;
-        let cube_height: f32 = 0.1;
+        let cube_height: f32 = 0.01;
         let cube_length: f32 = 50.0;
         commands
             .spawn((
                 PbrBundle {
-                    mesh: meshes.add(Cuboid::new(cube_width, cube_height, cube_length)),
-                    material: materials.add(Color::WHITE),
+                    mesh: meshes.add(Plane3d::new(
+                        Vec3::Y,
+                        Vec2::new(cube_width / 2.0, cube_length / 2.0),
+                    )),
+                    material: materials.add(StandardMaterial {
+                        base_color_texture: Some(stone_bricks),
+                        ..default()
+                    }),
                     ..default()
                 },
-                Collider::cuboid(cube_width / 2.0, cube_height / 2.0, cube_length / 2.0),
+                Collider::cuboid(cube_width / 2.0, cube_height, cube_length / 2.0),
             ))
-            .insert(TransformBundle::from(Transform::from_xyz(0.0, -0.1, 0.0)));
+            .insert(TransformBundle::from(Transform::from_xyz(
+                0.0,
+                -cube_height,
+                0.0,
+            )));
 
         let sphere_radius: f32 = 0.5;
         commands
